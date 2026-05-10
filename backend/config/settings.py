@@ -149,13 +149,23 @@ WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
 # ── Database ──────────────────────────────────────────────────────────────────
-import dj_database_url
+def _parse_database_url(url):
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    return {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': parsed.path.lstrip('/'),
+        'USER': parsed.username or 'postgres',
+        'PASSWORD': parsed.password or '',
+        'HOST': parsed.hostname or 'localhost',
+        'PORT': parsed.port or '5432',
+    }
 
 DATABASES = {
     'default': config(
         'DATABASE_URL',
         default='postgres://postgres:@localhost:5432/dlnudate',
-        cast=dj_database_url.parse
+        cast=_parse_database_url
     )
 }
 
