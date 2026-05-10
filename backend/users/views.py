@@ -8,7 +8,7 @@ from .serializers import (
     SendCodeSerializer, RegisterSerializer, LoginSerializer,
     LoginWithPasswordSerializer, UserProfileSerializer, UserUpdateSerializer,
 )
-from .utils import send_email_code, send_phone_code
+from .utils import send_email_code
 
 
 @api_view(['POST'])
@@ -17,13 +17,7 @@ def send_code(request):
     serializer = SendCodeSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     target = serializer.validated_data['target']
-    code_type = serializer.validated_data['code_type']
-
-    if code_type == 'email':
-        send_email_code(target)
-    else:
-        send_phone_code(target)
-
+    send_email_code(target)
     return Response({'detail': '验证码已发送'})
 
 

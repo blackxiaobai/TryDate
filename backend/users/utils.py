@@ -1,8 +1,11 @@
 import random
 import string
+import logging
 from django.core.mail import send_mail
 from django.conf import settings
 from .models import VerificationCode
+
+logger = logging.getLogger(__name__)
 
 
 def generate_code(length=6):
@@ -12,19 +15,15 @@ def generate_code(length=6):
 def send_email_code(email: str) -> str:
     code = generate_code()
     VerificationCode.objects.create(target=email, code=code, code_type='email')
-    send_mail(
-        subject='【DLNUDate】您的验证码',
-        message=f'您的验证码是：{code}，{settings.VERIFICATION_CODE_EXPIRE_MINUTES} 分钟内有效。',
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[email],
-        fail_silently=False,
-    )
-    return code
-
-
-def send_phone_code(phone: str) -> str:
-    code = generate_code()
-    VerificationCode.objects.create(target=phone, code=code, code_type='phone')
-    # TODO: 接入短信服务商 SDK（如阿里云、腾讯云）
-    print(f'[SMS] {phone} 的验证码：{code}')
+    try:
+        send_mail(
+            subject='【TryDate】您的验证码',
+            message=f'您的验证码是：{code}，{settings.VERIFICATION_CODE_EXPIRE_MINUTES} 分钟内有效。',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+    except Exception as e:
+        logger.warning(f'邮件发送失败: {e}，验证码: {code}')
+        print(f'[EMAIL FALLBACK] {email} 的验证码：{code}')
     return code
