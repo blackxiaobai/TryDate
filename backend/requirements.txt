@@ -12,3 +12,4 @@ Pillow==10.4.0
 python-decouple==3.8
 whitenoise==6.7.0
 django-jazzmin==3.0.0
+resend==2.6.0
