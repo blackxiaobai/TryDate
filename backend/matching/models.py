@@ -56,7 +56,22 @@ class Match(models.Model):
             self.user_b_action = action
         if self.user_a_action == self.Action.LIKED and self.user_b_action == self.Action.LIKED:
             self.status = self.MatchStatus.MATCHED
+            self.save()
+            self._create_chat_room()
         elif self.Action.PASSED in (self.user_a_action, self.user_b_action):
             self.status = self.MatchStatus.MISSED
-        self.save()
+            self.save()
+        else:
+            self.save()
+
+    def _create_chat_room(self):
+        from chat.models import ChatRoom, Message
+        room, created = ChatRoom.objects.get_or_create(match=self)
+        if created:
+            Message.objects.create(
+                chat_room=room,
+                sender=None,
+                msg_type=Message.MsgType.SYSTEM,
+                content='恭喜你们配对成功！开始聊天吧～',
+            )
 

@@ -12,23 +12,30 @@ http.interceptors.request.use((config) => {
   return config
 })
 
+let isRefreshing = false
+
 http.interceptors.response.use(
   (res) => res,
   async (err) => {
     const status = err.response?.status
-    if (status === 401) {
+    if (status === 401 && !err.config._retry && !isRefreshing) {
+      err.config._retry = true
+      isRefreshing = true
       const refresh = localStorage.getItem('refresh_token')
       if (refresh) {
         try {
           const { data } = await axios.post('/api/users/token/refresh/', { refresh })
           localStorage.setItem('access_token', data.access)
           err.config.headers.Authorization = `Bearer ${data.access}`
+          isRefreshing = false
           return http(err.config)
         } catch {
+          isRefreshing = false
           localStorage.clear()
           window.location.href = '/login'
         }
       } else {
+        isRefreshing = false
         localStorage.clear()
         window.location.href = '/login'
       }

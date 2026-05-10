@@ -22,9 +22,13 @@ db.sqlite3
 db.sqlite3-journal
 media/
 staticfiles/
+frontend-dist/
 
 # Environment variables (sensitive!)
 .env
+
+# Claude
+.claude/
 
 # IDE
 .vscode/

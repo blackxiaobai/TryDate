@@ -16,6 +16,7 @@ class RegisterSerializer(serializers.Serializer):
     target = serializers.CharField()
     code_type = serializers.ChoiceField(choices=['email', 'phone'])
     code = serializers.CharField(max_length=6)
+    password = serializers.CharField(min_length=6, max_length=128)
     nickname = serializers.CharField(max_length=30)
     gender = serializers.ChoiceField(choices=User.Gender.choices)
     gender_preference = serializers.ChoiceField(choices=User.GenderPreference.choices)
@@ -40,11 +41,12 @@ class RegisterSerializer(serializers.Serializer):
         validated_data.pop('code')
         code_type = validated_data.pop('code_type')
         target = validated_data.pop('target')
+        password = validated_data.pop('password')
 
         if code_type == 'email':
-            user = User.objects.create_user(email=target, password=None, **validated_data)
+            user = User.objects.create_user(email=target, password=password, **validated_data)
         else:
-            user = User.objects.create_user(phone=target, password=None, **validated_data)
+            user = User.objects.create_user(phone=target, password=password, **validated_data)
 
         vc.is_used = True
         vc.save()
@@ -81,6 +83,20 @@ class LoginSerializer(serializers.Serializer):
         return data
 
 
+class LoginWithPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField()
+
+    def validate(self, data):
+        user = User.objects.filter(email=data['email'], status=User.Status.ACTIVE).first()
+        if not user or not user.check_password(data['password']):
+            raise serializers.ValidationError({'detail': '邮箱或密码错误'})
+        if not user.password:
+            raise serializers.ValidationError({'detail': '该账号未设置密码，请使用验证码登录'})
+        data['_user'] = user
+        return data
+
+
 class UserProfileSerializer(serializers.ModelSerializer):
     avatar_url = serializers.SerializerMethodField()
 
@@ -89,7 +105,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'nickname', 'gender', 'gender_preference', 'birth_year',
             'grade', 'college_direction', 'avatar_url', 'bio',
-            'questionnaire_completion', 'created_at',
+            'questionnaire_completion', 'is_staff', 'created_at',
         ]
         read_only_fields = ['id', 'questionnaire_completion', 'created_at']
 

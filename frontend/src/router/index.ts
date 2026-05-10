@@ -21,6 +21,19 @@ const router = createRouter({
         { path: 'history', component: () => import('@/pages/HistoryPage.vue') },
       ],
     },
+    {
+      path: '/admin',
+      component: () => import('@/layouts/AdminLayout.vue'),
+      meta: { requiresAuth: true, requiresStaff: true },
+      children: [
+        { path: '', redirect: '/admin/dashboard' },
+        { path: 'dashboard', component: () => import('@/pages/admin/DashboardPage.vue') },
+        { path: 'users', component: () => import('@/pages/admin/UsersPage.vue') },
+        { path: 'matches', component: () => import('@/pages/admin/MatchesPage.vue') },
+        { path: 'posts', component: () => import('@/pages/admin/PostsPage.vue') },
+        { path: 'reports', component: () => import('@/pages/admin/ReportsPage.vue') },
+      ],
+    },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
   scrollBehavior: () => ({ top: 0 }),
@@ -28,7 +41,11 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const auth = useAuthStore()
+
   if (to.meta.requiresAuth && !auth.isLoggedIn) return '/login'
+
+  if (to.meta.requiresStaff && !auth.user?.is_staff) return '/app/match'
+
   if (to.meta.guest && auth.isLoggedIn && to.path !== '/') return '/app/match'
 })
 

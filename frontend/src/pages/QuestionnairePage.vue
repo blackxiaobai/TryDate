@@ -36,14 +36,18 @@
           <!-- Options -->
           <div class="space-y-2.5">
             <button v-for="(opt, oi) in questions[currentStep].options" :key="oi"
-              @click="selectAnswer(opt.value)"
+              @click="questions[currentStep].multi ? toggleMulti(opt.value) : selectSingle(opt.value)"
               class="w-full text-left px-4 py-3.5 rounded-2xl border-2 font-semibold text-sm transition-all duration-200 active:scale-98"
-              :class="answers[questions[currentStep].key] === opt.value
+              :class="isSelected(currentStep, opt.value)
                 ? 'border-pink-heart bg-pink-pale text-pink-heart shadow-card'
                 : 'border-lilac-pale bg-white/70 text-text-main hover:border-lilac'">
               <span class="mr-2">{{ opt.emoji }}</span>{{ opt.label }}
+              <span v-if="questions[currentStep].multi && isSelected(currentStep, opt.value)" class="ml-1 text-xs">✓</span>
             </button>
           </div>
+          <p v-if="questions[currentStep].multi" class="text-xs text-text-sub mt-3 text-center">
+            可多选 · 已选 {{ multiCount(currentStep) }} 项
+          </p>
         </div>
       </transition>
     </div>
@@ -89,24 +93,70 @@ const completed = ref(false)
 const completion = ref(0)
 const answers = reactive<Record<string, string | string[]>>({})
 
-const questions = [
-  { key:'sleep_schedule', dimension:'生活习惯', emoji:'🌙', text:'你是什么类型的人？', options:[{value:'early_bird',emoji:'🌅',label:'早鸟型，7点前起床'},{value:'normal',emoji:'☀️',label:'普通作息，8-10点'},{value:'night_owl',emoji:'🌙',label:'夜猫子，12点后睡'}] },
+interface Option { value: string; emoji: string; label: string }
+interface Question { key: string; dimension: string; emoji: string; text: string; options: Option[]; multi?: boolean; optional?: boolean }
+
+const questions: Question[] = [
+  // === 性格特质 ===
   { key:'personality_type', dimension:'性格特质', emoji:'✨', text:'你更接近哪种性格？', options:[{value:'extrovert',emoji:'🎉',label:'外向，喜欢热闹'},{value:'ambivert',emoji:'🌿',label:'随心所欲，两者皆可'},{value:'introvert',emoji:'📚',label:'内向，享受独处'}] },
+  { key:'mbti', dimension:'性格特质', emoji:'🔮', text:'你的 MBTI 是？', optional:true, options:[{value:'INFP',emoji:'🌙',label:'INFP'},{value:'ENFP',emoji:'🌟',label:'ENFP'},{value:'INTJ',emoji:'🔭',label:'INTJ'},{value:'ENTJ',emoji:'⚡',label:'ENTJ'},{value:'INFJ',emoji:'💫',label:'INFJ'},{value:'ENFJ',emoji:'☀️',label:'ENFJ'},{value:'ISFP',emoji:'🎨',label:'ISFP'},{value:'ESTP',emoji:'🏄',label:'ESTP'},{value:'other',emoji:'🎭',label:'其他/不清楚'}] },
+  { key:'self_description', dimension:'性格特质', emoji:'🪞', text:'你觉得自己的关键词是？（多选）', multi:true, options:[{value:'warm',emoji:'🔥',label:'温暖'},{value:'humor',emoji:'😂',label:'幽默'},{value:'quiet',emoji:'🤫',label:'安静'},{value:'active',emoji:'🏃',label:'活泼'},{value:'careful',emoji:'🔍',label:'细心'},{value:'creative',emoji:'💡',label:'有创意'},{value:'reliable',emoji:'🛡️',label:'靠谱'},{value:'romantic',emoji:'🌹',label:'浪漫'}] },
+
+  // === 爱情观 ===
   { key:'love_priorities', dimension:'爱情观', emoji:'💕', text:'恋爱中你最看重什么？', options:[{value:'understanding',emoji:'🤝',label:'理解与陪伴'},{value:'growth',emoji:'🌱',label:'共同成长进步'},{value:'fun',emoji:'🎊',label:'快乐与浪漫'},{value:'stability',emoji:'🏠',label:'稳定与安全感'}] },
   { key:'conflict_style', dimension:'爱情观', emoji:'💬', text:'吵架了你倾向于怎么做？', options:[{value:'talk_now',emoji:'🗣️',label:'立刻沟通，不隔夜'},{value:'cool_down',emoji:'❄️',label:'先冷静，再聊'},{value:'hug_first',emoji:'🤗',label:'抱一抱，用行动说话'}] },
-  { key:'ideal_weekend', dimension:'生活习惯', emoji:'🎡', text:'理想的周末是？', options:[{value:'outdoor',emoji:'🏕️',label:'户外探险、运动'},{value:'social',emoji:'☕',label:'逛街、咖啡、看展'},{value:'homebody',emoji:'🛋️',label:'宅家追剧、打游戏'},{value:'learning',emoji:'📖',label:'读书、学习充电'}] },
-  { key:'space_need', dimension:'爱情观', emoji:'🌊', text:'你在恋爱中需要多少私人空间？', options:[{value:'1',emoji:'🔥',label:'黏糊糊最好，24小时在一起'},{value:'2',emoji:'🌸',label:'大部分时间在一起'},{value:'3',emoji:'⚖️',label:'各自有自己的时间'},{value:'4',emoji:'🌙',label:'需要较多独处时间'}] },
+  { key:'space_need', dimension:'爱情观', emoji:'🌊', text:'恋爱中你需要多少私人空间？', options:[{value:'1',emoji:'🔥',label:'黏糊糊最好，24小时在一起'},{value:'2',emoji:'🌸',label:'大部分时间在一起'},{value:'3',emoji:'⚖️',label:'各自有自己的时间'},{value:'4',emoji:'🌙',label:'需要较多独处时间'}] },
+  { key:'long_distance', dimension:'爱情观', emoji:'✈️', text:'你能接受异地恋吗？', options:[{value:'1',emoji:'❌',label:'完全不能'},{value:'2',emoji:'😟',label:'不太能，但短期可以'},{value:'3',emoji:'😐',label:'无所谓'},{value:'4',emoji:'💪',label:'可以，距离不是问题'}] },
   { key:'future_plan', dimension:'爱情观', emoji:'🌟', text:'毕业后你打算？', options:[{value:'local',emoji:'🏡',label:'留在本城市'},{value:'return_home',emoji:'🏘️',label:'回老家发展'},{value:'open',emoji:'🌍',label:'哪里好就去哪里'},{value:'abroad',emoji:'✈️',label:'出国深造或工作'}] },
-  { key:'hobbies', dimension:'兴趣爱好', emoji:'🎨', text:'业余时间最常做什么？（可多选思维）', options:[{value:'music',emoji:'🎵',label:'听音乐/演奏'},{value:'movies',emoji:'🎬',label:'看电影/追剧'},{value:'sports',emoji:'⚽',label:'运动健身'},{value:'games',emoji:'🎮',label:'游戏'}] },
+
+  // === 生活习惯 ===
+  { key:'sleep_schedule', dimension:'生活习惯', emoji:'🌙', text:'你是什么类型的人？', options:[{value:'early_bird',emoji:'🌅',label:'早鸟型，7点前起床'},{value:'normal',emoji:'☀️',label:'普通作息，8-10点'},{value:'night_owl',emoji:'🌙',label:'夜猫子，12点后睡'}] },
+  { key:'ideal_weekend', dimension:'生活习惯', emoji:'🎡', text:'理想的周末是？', options:[{value:'outdoor',emoji:'🏕️',label:'户外探险、运动'},{value:'social',emoji:'☕',label:'逛街、咖啡、看展'},{value:'homebody',emoji:'🛋️',label:'宅家追剧、打游戏'},{value:'learning',emoji:'📖',label:'读书、学习充电'}] },
+  { key:'food_style', dimension:'生活习惯', emoji:'🍜', text:'你的饮食偏好？', options:[{value:'everything',emoji:'😋',label:'什么都吃'},{value:'spicy',emoji:'🌶️',label:'无辣不欢'},{value:'sweet',emoji:'🍰',label:'偏甜口'},{value:'healthy',emoji:'🥗',label:'清淡健康'}] },
+  { key:'has_pet', dimension:'生活习惯', emoji:'🐾', text:'你对养宠物的态度？', options:[{value:'love',emoji:'😍',label:'超爱，想养猫/狗'},{value:'ok',emoji:'🙂',label:'还行，不排斥'},{value:'no',emoji:'🤧',label:'过敏/不太喜欢'}] },
+  { key:'exercise_habit', dimension:'生活习惯', emoji:'💪', text:'你的运动频率？', options:[{value:'daily',emoji:'🏋️',label:'几乎每天'},{value:'weekly',emoji:'🏃',label:'每周 2-3 次'},{value:'rarely',emoji:'🧘',label:'偶尔动一动'},{value:'never',emoji:'🛋️',label:'基本不动'}] },
+
+  // === 兴趣爱好（多选） ===
+  { key:'hobbies', dimension:'兴趣爱好', emoji:'🎨', text:'业余时间喜欢做什么？（多选）', multi:true, options:[{value:'music',emoji:'🎵',label:'听音乐/演奏'},{value:'movies',emoji:'🎬',label:'看电影/追剧'},{value:'sports',emoji:'⚽',label:'运动健身'},{value:'games',emoji:'🎮',label:'打游戏'},{value:'reading',emoji:'📚',label:'读书'},{value:'cooking',emoji:'🍳',label:'做饭/烘焙'},{value:'photo',emoji:'📸',label:'摄影'},{value:'travel',emoji:'🗺️',label:'旅行'}] },
+  { key:'campus_activities', dimension:'兴趣爱好', emoji:'🏫', text:'你参加过哪些校园活动？（多选）', multi:true, options:[{value:'club',emoji:'🎭',label:'社团'},{value:'volunteer',emoji:'🤝',label:'志愿者'},{value:'competition',emoji:'🏆',label:'学科竞赛'},{value:'sports_event',emoji:'⚽',label:'运动会/体育赛事'},{value:'art_show',emoji:'🎤',label:'文艺演出'},{value:'none',emoji:'😌',label:'基本没参加过'}] },
+  { key:'target_traits', dimension:'兴趣爱好', emoji:'💝', text:'你希望对方有什么特质？（多选）', multi:true, options:[{value:'humor',emoji:'😂',label:'幽默有趣'},{value:'gentle',emoji:'🌸',label:'温柔体贴'},{value:'ambitious',emoji:'🚀',label:'上进有目标'},{value:'honest',emoji:'💎',label:'真诚坦率'},{value:'smart',emoji:'🧠',label:'聪明有见识'},{value:'caring',emoji:'🤗',label:'会照顾人'}] },
+
+  // === 约会偏好 ===
   { key:'ideal_first_date', dimension:'约会偏好', emoji:'🌹', text:'第一次约会，你更想去？', options:[{value:'cafe',emoji:'☕',label:'安静的咖啡馆'},{value:'walk',emoji:'🚶',label:'边走边聊、逛街'},{value:'activity',emoji:'🎳',label:'一起做个小活动'},{value:'meal',emoji:'🍜',label:'吃一顿好吃的'}] },
-  { key:'mbti', dimension:'性格特质', emoji:'🔮', text:'你的 MBTI 是？', optional: true, options:[{value:'INFP',emoji:'🌙',label:'INFP'},{value:'ENFP',emoji:'🌟',label:'ENFP'},{value:'INTJ',emoji:'🔭',label:'INTJ'},{value:'ENTJ',emoji:'⚡',label:'ENTJ'},{value:'INFJ',emoji:'💫',label:'INFJ'},{value:'ENFJ',emoji:'☀️',label:'ENFJ'},{value:'other',emoji:'🎭',label:'其他/不清楚'}] },
+  { key:'when_to_date', dimension:'约会偏好', emoji:'📅', text:'你希望认识多久后确定关系？', options:[{value:'fast',emoji:'⚡',label:'感觉对了就行'},{value:'one_month',emoji:'📆',label:'聊一个月左右'},{value:'three_months',emoji:'🗓️',label:'两三个月再说'},{value:'slow',emoji:'🐢',label:'慢慢来不着急'}] },
+  { key:'entertainment', dimension:'兴趣爱好', emoji:'🎭', text:'你喜欢的娱乐方式？（多选）', multi:true, options:[{value:'concert',emoji:'🎵',label:'看演唱会/live'},{value:'board_game',emoji:'🎲',label:'桌游/剧本杀'},{value:'kTV',emoji:'🎤',label:'KTV'},{value:'exhibition',emoji:'🖼️',label:'看展/博物馆'},{value:'cafe_crawl',emoji:'☕',label:'探店/咖啡馆'},{value:'night_market',emoji:'🏮',label:'夜市/逛街'}] },
 ]
 
-function selectAnswer(value: string) {
+function isSelected(step: number, value: string): boolean {
+  const q = questions[step]
+  if (q.multi) {
+    return ((answers[q.key] as string[]) || []).includes(value)
+  }
+  return answers[q.key] === value
+}
+
+function multiCount(step: number): number {
+  const q = questions[step]
+  return ((answers[q.key] as string[]) || []).length
+}
+
+function selectSingle(value: string) {
   answers[questions[currentStep.value].key] = value
   if (currentStep.value < questions.length - 1) {
     setTimeout(() => { currentStep.value++ }, 350)
   }
+}
+
+function toggleMulti(value: string) {
+  const key = questions[currentStep.value].key
+  const arr = (answers[key] as string[]) || []
+  const idx = arr.indexOf(value)
+  if (idx >= 0) {
+    arr.splice(idx, 1)
+  } else {
+    arr.push(value)
+  }
+  answers[key] = [...arr]
 }
 
 function next() {

@@ -5,6 +5,8 @@ export const userApi = {
     http.post('/users/send-code/', { target, code_type }),
   register: (data: object) => http.post('/users/register/', data),
   login: (data: object) => http.post('/users/login/', data),
+  loginWithPassword: (email: string, password: string) =>
+    http.post('/users/login/password/', { email, password }),
   getProfile: () => http.get('/users/profile/'),
   updateProfile: (data: object) => http.patch('/users/profile/', data, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -39,4 +41,17 @@ export const postsApi = {
     http.post('/posts/create/', data),
   like: (id: number) => http.post(`/posts/${id}/like/`),
   delete: (id: number) => http.delete(`/posts/${id}/delete/`),
+}
+
+export const adminApi = {
+  dashboard: () => http.get('/admin/dashboard/'),
+  users: (params?: Record<string, string>) => http.get('/admin/users/', { params }),
+  banUser: (id: string) => http.post(`/admin/users/${id}/ban/`),
+  unbanUser: (id: string) => http.post(`/admin/users/${id}/unban/`),
+  matches: (params?: Record<string, string>) => http.get('/admin/matches/', { params }),
+  posts: (params?: Record<string, string>) => http.get('/admin/posts/', { params }),
+  hidePost: (id: number) => http.post(`/admin/posts/${id}/hide/`),
+  restorePost: (id: number) => http.post(`/admin/posts/${id}/restore/`),
+  reports: (params?: Record<string, string>) => http.get('/admin/reports/', { params }),
+  resolveReport: (id: number, action: string) => http.post(`/admin/reports/${id}/resolve/`, { action }),
 }

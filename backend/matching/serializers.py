@@ -7,6 +7,7 @@ class MatchSerializer(serializers.ModelSerializer):
     partner = serializers.SerializerMethodField()
     my_action = serializers.SerializerMethodField()
     is_expired = serializers.SerializerMethodField()
+    chat_room_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Match
@@ -14,7 +15,13 @@ class MatchSerializer(serializers.ModelSerializer):
             'id', 'partner', 'compatibility_score', 'dimension_scores',
             'compatibility_highlights', 'my_action', 'status',
             'week_number', 'matched_at', 'action_deadline', 'is_expired',
+            'chat_room_id',
         ]
+
+    def get_chat_room_id(self, obj):
+        if obj.status == Match.MatchStatus.MATCHED:
+            return getattr(obj.chat_room, 'id', None)
+        return None
 
     def get_partner(self, obj):
         request = self.context.get('request')

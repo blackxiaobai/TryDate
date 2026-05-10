@@ -8,11 +8,12 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-dev-key-change-in-pro
 
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*', cast=lambda v: [s.strip() for s in v.split(',')])
 
 # ── Apps ──────────────────────────────────────────────────────────────────────
 INSTALLED_APPS = [
     'daphne',
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -30,12 +31,95 @@ INSTALLED_APPS = [
     'matching',
     'chat',
     'posts',
+    'admin_api',
 ]
+
+# ── Jazzmin Admin Theme ────────────────────────────────────────────────────
+JAZZMIN_SETTINGS = {
+    'site_title': 'TryDate 管理后台',
+    'site_header': 'TryDate 💝',
+    'site_brand': 'TryDate 💝',
+    'welcome_sign': '欢迎登录 TryDate 管理后台',
+    'copyright': 'TryDate Campus Matching Platform',
+
+    'search_model': ['users.User', 'chat.Message', 'posts.Post'],
+
+    'topmenu_links': [
+        {'name': '首页', 'url': '/', 'new_window': True},
+        {'model': 'users.User'},
+    ],
+
+    'show_sidebar': True,
+    'navigation_expanded': True,
+
+    'order_with_respect_to': [
+        'users',
+        'matching',
+        'chat',
+        'questionnaire',
+        'posts',
+        'auth',
+    ],
+
+    'icons': {
+        'auth.Group': 'fas fa-users-cog',
+        'users.User': 'fas fa-user',
+        'users.BlackList': 'fas fa-ban',
+        'users.VerificationCode': 'fas fa-key',
+        'matching.Match': 'fas fa-heart',
+        'chat.ChatRoom': 'fas fa-comments',
+        'chat.Message': 'fas fa-envelope',
+        'chat.Report': 'fas fa-flag',
+        'questionnaire.Questionnaire': 'fas fa-clipboard-list',
+        'posts.Post': 'fas fa-newspaper',
+        'posts.PostLike': 'fas fa-thumbs-up',
+    },
+
+    'default_icon_parents': 'fas fa-folder',
+    'default_icon_children': 'fas fa-circle',
+
+    'show_ui_builder': False,
+
+    'changeform_format': 'horizontal_tabs',
+}
+
+JAZZMIN_UI_TWEAKS = {
+    'navbar_small_text': False,
+    'footer_small_text': False,
+    'body_small_text': False,
+    'brand_small_text': False,
+    'brand_colour': False,
+    'accent': 'accent-pink',
+    'navbar': 'navbar-pink navbar-dark',
+    'no_navbar_border': False,
+    'navbar_fixed': True,
+    'layout_boxed': False,
+    'footer_fixed': False,
+    'sidebar_fixed': True,
+    'sidebar': 'sidebar-dark-pink',
+    'sidebar_nav_small_text': False,
+    'sidebar_disable_expand': False,
+    'sidebar_nav_child_indent': True,
+    'sidebar_nav_compact_style': False,
+    'sidebar_nav_legacy_style': False,
+    'sidebar_nav_flat_style': False,
+    'theme': 'default',
+    'dark_mode_theme': None,
+    'button_classes': {
+        'primary': 'btn-primary',
+        'secondary': 'btn-secondary',
+        'info': 'btn-info',
+        'warning': 'btn-warning',
+        'danger': 'btn-danger',
+        'success': 'btn-success',
+    },
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -48,7 +132,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'frontend-dist'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -65,15 +149,14 @@ WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
 # ── Database ──────────────────────────────────────────────────────────────────
+import dj_database_url
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME', default='dlnudate'),
-        'USER': config('DB_USER', default='postgres'),
-        'PASSWORD': config('DB_PASSWORD', default=''),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='5432'),
-    }
+    'default': config(
+        'DATABASE_URL',
+        default='postgres://postgres:@localhost:5432/dlnudate',
+        cast=dj_database_url.parse
+    )
 }
 
 # ── Redis & Channels ──────────────────────────────────────────────────────────
@@ -122,7 +205,11 @@ SIMPLE_JWT = {
 }
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
-CORS_ALLOW_ALL_ORIGINS = True  # dev only; restrict in production
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='', cast=lambda v: [s.strip() for s in v.split(',') if s.strip()])
+    CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='', cast=lambda v: [s.strip() for s in v.split(',') if s.strip()])
 
 # ── Internationalisation ──────────────────────────────────────────────────────
 LANGUAGE_CODE = 'zh-hans'
@@ -133,6 +220,16 @@ USE_TZ = True
 # ── Static & Media ────────────────────────────────────────────────────────────
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = []
+_frontend_dist = BASE_DIR / 'frontend-dist'
+if _frontend_dist.exists():
+    STATICFILES_DIRS.append(('assets', _frontend_dist / 'assets'))
+
+STORAGES = {
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -140,13 +237,14 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ── Email ─────────────────────────────────────────────────────────────────────
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # dev: print to console
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = config('EMAIL_HOST', default='smtp.qq.com')
-EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
-EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_PORT = config('EMAIL_PORT', default=465, cast=int)
+EMAIL_USE_SSL = config('EMAIL_USE_SSL', default=True, cast=bool)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=False, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = 'DLNUDate <noreply@dlnudate.com>'
+DEFAULT_FROM_EMAIL = config('EMAIL_HOST_USER', default='')
 
 # ── Verification Code ─────────────────────────────────────────────────────────
 VERIFICATION_CODE_EXPIRE_MINUTES = 10

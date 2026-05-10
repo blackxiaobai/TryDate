@@ -16,6 +16,7 @@
               <TopNavItem to="/app/chat" :active="route.path.startsWith('/app/chat')" emoji="💬" label="聊天" />
               <TopNavItem to="/app/posts" :active="route.path === '/app/posts'" emoji="🌸" label="动态" />
               <TopNavItem to="/app/profile" :active="route.path === '/app/profile'" emoji="👤" label="我的" />
+              <TopNavItem v-if="auth.user?.is_staff" to="/admin" :active="route.path.startsWith('/admin')" emoji="⚙️" label="管理" />
             </div>
           </div>
         </div>
@@ -37,8 +38,10 @@
 import { useRoute } from 'vue-router'
 import { defineComponent, h } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
+const auth = useAuthStore()
 
 const TopNavItem = defineComponent({
   props: { to: String, active: Boolean, emoji: String, label: String },

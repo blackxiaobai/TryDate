@@ -25,9 +25,12 @@ DIMENSION_KEYS = {
     ],
     'lifestyle': [
         'sleep_schedule', 'personality_type', 'ideal_weekend',
-        'smoking_tolerance', 'food_style', 'exercise_habit', 'has_pet',
+        'food_style', 'exercise_habit', 'has_pet',
     ],
-    'interests': ['hobbies', 'mbti', 'target_traits', 'self_description'],
+    'interests': [
+        'hobbies', 'mbti', 'target_traits', 'self_description',
+        'campus_activities', 'entertainment',
+    ],
     'date_pref': ['ideal_first_date', 'when_to_date'],
 }
 
@@ -79,7 +82,8 @@ def _calc_dimension_score(a_ans: dict, b_ans: dict, dim: str) -> float:
     for k in keys:
         av = a_ans.get(k)
         bv = b_ans.get(k)
-        if k in ('love_priorities', 'hobbies', 'food_style', 'target_traits'):
+        if k in ('hobbies', 'target_traits', 'self_description',
+                  'campus_activities', 'entertainment'):
             scores.append(_multi_choice_score(av or [], bv or []))
         elif k in ('long_distance', 'space_need', 'money_attitude'):
             scores.append(_scale_score(av, bv))
@@ -101,16 +105,21 @@ def generate_highlights(a_ans: dict, b_ans: dict) -> List[str]:
     if a_ans.get('sleep_schedule') and a_ans.get('sleep_schedule') == b_ans.get('sleep_schedule'):
         label = '早鸟' if a_ans['sleep_schedule'] == 'early_bird' else '夜猫子'
         highlights.append(f'你们都是{label}，约好一起{("早餐" if label == "早鸟" else "夜宵")}吧～')
-    a_hobbies = set(a_ans.get('hobbies') or [])
-    b_hobbies = set(b_ans.get('hobbies') or [])
-    common = a_hobbies & b_hobbies
-    if common:
-        hobby = list(common)[0]
-        highlights.append(f'你们都喜欢{hobby}，聊起来一定有很多共同话题！')
+    for key, name in [('hobbies', '兴趣'), ('entertainment', '娱乐方式')]:
+        a_set = set(a_ans.get(key) or [])
+        b_set = set(b_ans.get(key) or [])
+        common = a_set & b_set
+        if common:
+            highlights.append(f'在{name}上你们有共同话题，聊起来一定很开心！')
+            break
     if a_ans.get('conflict_style') and a_ans.get('conflict_style') == b_ans.get('conflict_style'):
-        highlights.append('你们处理争吵的方式很默契，沟通应该会比较顺畅！')
+        highlights.append('你们处理争吵的方式很默契，沟通会比较顺畅！')
     if a_ans.get('future_plan') and a_ans.get('future_plan') == b_ans.get('future_plan'):
         highlights.append('你们对未来的方向很一致，走在同一条路上！')
+    a_desc = set(a_ans.get('self_description') or [])
+    b_desc = set(b_ans.get('self_description') or [])
+    if a_desc & b_desc:
+        highlights.append(f'你们的自我描述有重合，性格上可能很合拍！')
     return highlights[:3]
 
 

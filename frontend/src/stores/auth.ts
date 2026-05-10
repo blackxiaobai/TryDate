@@ -12,6 +12,7 @@ interface User {
   avatar_url: string | null
   bio: string
   questionnaire_completion: number
+  is_staff: boolean
 }
 
 export const useAuthStore = defineStore('auth', () => {

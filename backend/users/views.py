@@ -6,7 +6,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User
 from .serializers import (
     SendCodeSerializer, RegisterSerializer, LoginSerializer,
-    UserProfileSerializer, UserUpdateSerializer,
+    LoginWithPasswordSerializer, UserProfileSerializer, UserUpdateSerializer,
 )
 from .utils import send_email_code, send_phone_code
 
@@ -62,6 +62,20 @@ def login_with_code(request):
     vc.is_used = True
     vc.save()
 
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        'access': str(refresh.access_token),
+        'refresh': str(refresh),
+        'user': UserProfileSerializer(user, context={'request': request}).data,
+    })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login_with_password(request):
+    serializer = LoginWithPasswordSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    user = serializer.validated_data['_user']
     refresh = RefreshToken.for_user(user)
     return Response({
         'access': str(refresh.access_token),

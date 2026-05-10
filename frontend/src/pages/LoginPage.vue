@@ -36,24 +36,30 @@
         </div>
 
         <form @submit.prevent="handleSubmit" class="space-y-4">
-          <!-- Code type -->
-          <div class="flex bg-cream rounded-xl p-0.5 gap-0.5">
-            <button type="button" @click="codeType='email'"
-              class="flex-1 py-1.5 rounded-lg text-xs font-bold transition-all"
-              :class="codeType==='email' ? 'bg-white text-pink-heart shadow-sm' : 'text-text-sub'">
-              📧 邮箱
-            </button>
-            <button type="button" @click="codeType='phone'"
-              class="flex-1 py-1.5 rounded-lg text-xs font-bold transition-all"
-              :class="codeType==='phone' ? 'bg-white text-pink-heart shadow-sm' : 'text-text-sub'">
-              📱 手机号
-            </button>
-          </div>
 
-          <!-- Target input -->
-          <input v-model="target" :type="codeType==='email' ? 'email' : 'tel'"
-            :placeholder="codeType==='email' ? '输入邮箱地址' : '输入手机号'"
-            class="input-field" required />
+          <!-- Login mode toggle (only in login) -->
+          <template v-if="!isRegister">
+            <div class="flex bg-cream rounded-xl p-0.5 gap-0.5">
+              <button type="button" @click="loginMode='password'"
+                class="flex-1 py-1.5 rounded-lg text-xs font-bold transition-all"
+                :class="loginMode==='password' ? 'bg-white text-pink-heart shadow-sm' : 'text-text-sub'">
+                🔑 密码登录
+              </button>
+              <button type="button" @click="loginMode='code'"
+                class="flex-1 py-1.5 rounded-lg text-xs font-bold transition-all"
+                :class="loginMode==='code' ? 'bg-white text-pink-heart shadow-sm' : 'text-text-sub'">
+                📬 验证码登录
+              </button>
+            </div>
+          </template>
+
+          <!-- Email input -->
+          <input v-model="email" type="email" placeholder="输入邮箱地址" class="input-field" required />
+
+          <!-- Password input (register always, login password mode) -->
+          <template v-if="isRegister || loginMode === 'password'">
+            <input v-model="password" type="password" placeholder="输入密码（至少6位）" minlength="6" class="input-field" required />
+          </template>
 
           <!-- Register extra fields -->
           <template v-if="isRegister">
@@ -73,15 +79,17 @@
             </div>
           </template>
 
-          <!-- Code row -->
-          <div class="flex gap-2">
-            <input v-model="code" type="text" placeholder="验证码" maxlength="6" class="input-field flex-1" required />
-            <button type="button" @click="sendCode"
-              :disabled="countdown > 0 || sendingCode"
-              class="whitespace-nowrap px-4 py-3 rounded-2xl bg-gradient-heart text-white text-sm font-bold disabled:opacity-50 transition-all active:scale-95 shadow-sm">
-              {{ countdown > 0 ? `${countdown}s` : (sendingCode ? '发送中' : '获取') }}
-            </button>
-          </div>
+          <!-- Code row (register always, login code mode) -->
+          <template v-if="isRegister || loginMode === 'code'">
+            <div class="flex gap-2">
+              <input v-model="code" type="text" placeholder="邮箱验证码" maxlength="6" class="input-field flex-1" required />
+              <button type="button" @click="sendCode"
+                :disabled="countdown > 0 || sendingCode"
+                class="whitespace-nowrap px-4 py-3 rounded-2xl bg-gradient-heart text-white text-sm font-bold disabled:opacity-50 transition-all active:scale-95 shadow-sm">
+                {{ countdown > 0 ? `${countdown}s` : (sendingCode ? '发送中' : '获取') }}
+              </button>
+            </div>
+          </template>
 
           <button type="submit" :disabled="loading" class="btn-primary w-full py-4 text-base mt-2">
             <span v-if="loading">处理中…</span>
@@ -111,9 +119,10 @@ const router = useRouter()
 const auth = useAuthStore()
 
 const isRegister = ref(false)
-const codeType = ref<'email' | 'phone'>('email')
-const target = ref('')
+const loginMode = ref<'password' | 'code'>('password')
+const email = ref('')
 const code = ref('')
+const password = ref('')
 const nickname = ref('')
 const gender = ref('')
 const gender_preference = ref('')
@@ -124,10 +133,10 @@ const countdown = ref(0)
 let timer: ReturnType<typeof setInterval>
 
 async function sendCode() {
-  if (!target.value) { toast.error('请先填写邮箱或手机号'); return }
+  if (!email.value) { toast.error('请先填写邮箱地址'); return }
   sendingCode.value = true
   try {
-    await userApi.sendCode(target.value, codeType.value)
+    await userApi.sendCode(email.value, 'email')
     toast.success('验证码已发送 📬')
     countdown.value = 60
     timer = setInterval(() => { if (--countdown.value <= 0) clearInterval(timer) }, 1000)
@@ -140,9 +149,11 @@ async function handleSubmit() {
     let res
     if (isRegister.value) {
       if (!gender.value || !gender_preference.value) { toast.error('请选择性别和期望对象'); return }
-      res = await userApi.register({ target: target.value, code_type: codeType.value, code: code.value, nickname: nickname.value, gender: gender.value, gender_preference: gender_preference.value })
+      res = await userApi.register({ target: email.value, code_type: 'email', code: code.value, password: password.value, nickname: nickname.value, gender: gender.value, gender_preference: gender_preference.value })
+    } else if (loginMode.value === 'password') {
+      res = await userApi.loginWithPassword(email.value, password.value)
     } else {
-      res = await userApi.login({ target: target.value, code_type: codeType.value, code: code.value })
+      res = await userApi.login({ target: email.value, code_type: 'email', code: code.value })
     }
     auth.setTokens(res.data.access, res.data.refresh, res.data.user)
     toast.success(isRegister.value ? '注册成功！去完成灵魂问卷吧 ✨' : '欢迎回来 💝')

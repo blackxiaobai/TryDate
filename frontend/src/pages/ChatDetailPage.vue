@@ -75,13 +75,36 @@
       class="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm flex items-end">
       <div class="w-full bg-white rounded-t-3xl p-5 space-y-3 animate-slide-up">
         <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
-        <button @click="reportUser" class="w-full py-3.5 rounded-2xl bg-amber/10 text-amber font-bold text-sm flex items-center justify-center gap-2">
+        <button @click="showMenu=false; showReport=true" class="w-full py-3.5 rounded-2xl bg-amber/10 text-amber font-bold text-sm flex items-center justify-center gap-2">
           <FlagIcon class="w-4 h-4" /> 举报该用户
         </button>
         <button @click="blockUser" class="w-full py-3.5 rounded-2xl bg-red-50 text-red-500 font-bold text-sm flex items-center justify-center gap-2">
           <BanIcon class="w-4 h-4" /> 拉黑并屏蔽
         </button>
         <button @click="showMenu=false" class="w-full py-3 text-text-sub font-semibold text-sm">取消</button>
+      </div>
+    </div>
+
+    <!-- Report dialog -->
+    <div v-if="showReport" @click.self="showReport=false"
+      class="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-end">
+      <div class="w-full bg-white rounded-t-3xl p-5 space-y-3 animate-slide-up">
+        <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-2"></div>
+        <h3 class="font-black text-text-main text-sm">举报原因</h3>
+        <div class="flex flex-wrap gap-2">
+          <button v-for="(label, key) in reportReasons" :key="key"
+            @click="reportReason = key"
+            class="px-4 py-2 rounded-xl text-xs font-bold transition-all"
+            :class="reportReason === key ? 'bg-amber/20 text-amber ring-2 ring-amber/30' : 'bg-gray-100 text-text-sub'">
+            {{ label }}
+          </button>
+        </div>
+        <textarea v-model="reportDesc" placeholder="补充说明（可选）" rows="2"
+          class="w-full px-4 py-2.5 rounded-2xl bg-cream border-2 border-transparent text-sm text-text-main placeholder-text-sub outline-none focus:border-amber/40 resize-none" />
+        <button @click="submitReport" :disabled="!reportReason || reporting"
+          class="w-full py-3 rounded-2xl bg-gradient-heart text-white font-bold text-sm disabled:opacity-40">
+          {{ reporting ? '提交中…' : '提交举报' }}
+        </button>
       </div>
     </div>
   </div>
@@ -110,7 +133,22 @@ const partnerName = ref('...')
 const partnerAvatar = ref('')
 
 const myId = computed(() => auth.user?.id)
+const partnerId = computed(() => {
+  const msg = messages.value.find(m => m.sender_id !== myId.value)
+  return msg?.sender_id || ''
+})
 let ws: WebSocket | null = null
+
+const showReport = ref(false)
+const reportReason = ref('')
+const reportDesc = ref('')
+const reporting = ref(false)
+const reportReasons: Record<string, string> = {
+  harassment: '骚扰/辱骂',
+  inappropriate_content: '不当内容',
+  fake: '虚假信息',
+  other: '其他',
+}
 
 function formatMsgTime(t: string) { return dayjs(t).format('HH:mm') }
 
@@ -141,7 +179,8 @@ function scrollBottom() {
 
 function connectWS() {
   const token = localStorage.getItem('access_token')
-  ws = new WebSocket(`ws://localhost:8000/ws/chat/${roomId}/`)
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/chat/${roomId}/?token=${token}`)
   ws.onmessage = (e) => {
     const data = JSON.parse(e.data)
     if (data.type === 'chat_message') {
@@ -152,15 +191,29 @@ function connectWS() {
   ws.onclose = () => setTimeout(connectWS, 3000)
 }
 
-async function reportUser() {
-  showMenu.value = false
-  toast.info('举报功能开发中')
+async function submitReport() {
+  if (!reportReason.value || reporting.value) return
+  reporting.value = true
+  try {
+    await chatApi.report({
+      target_user: partnerId.value,
+      reason: reportReason.value,
+      description: reportDesc.value || undefined,
+    })
+    toast.success('举报已提交，我们会尽快处理')
+    showReport.value = false
+    reportReason.value = ''
+    reportDesc.value = ''
+  } catch { toast.error('举报失败') } finally { reporting.value = false }
 }
 
 async function blockUser() {
   showMenu.value = false
-  toast.success('已屏蔽该用户')
-  router.push('/app/chat')
+  try {
+    await chatApi.block(partnerId.value)
+    toast.success('已屏蔽该用户')
+    router.push('/app/chat')
+  } catch { toast.error('屏蔽失败') }
 }
 
 onMounted(async () => {
