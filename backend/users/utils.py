@@ -1,5 +1,6 @@
 import random
 import string
+import socket
 import logging
 from django.core.mail import send_mail
 from django.conf import settings
@@ -15,6 +16,8 @@ def generate_code(length=6):
 def send_email_code(email: str) -> str:
     code = generate_code()
     VerificationCode.objects.create(target=email, code=code, code_type='email')
+    old_timeout = socket.getdefaulttimeout()
+    socket.setdefaulttimeout(5)
     try:
         send_mail(
             subject='【TryDate】您的验证码',
@@ -26,4 +29,6 @@ def send_email_code(email: str) -> str:
     except Exception as e:
         logger.warning(f'邮件发送失败: {e}，验证码: {code}')
         print(f'[EMAIL FALLBACK] {email} 的验证码：{code}')
+    finally:
+        socket.setdefaulttimeout(old_timeout)
     return code
