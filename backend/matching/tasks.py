@@ -21,13 +21,11 @@ def find_match_for_user(user) -> Match | None:
 
     week = get_week_number()
 
-    # 排除：已有待处理或已匹配的记录
+    # 排除：本周已有过匹配记录的用户
     existing_matches = Match.objects.filter(
         week_number=week
     ).filter(
         Q(user_a=user) | Q(user_b=user)
-    ).filter(
-        status__in=[Match.MatchStatus.PENDING, Match.MatchStatus.MATCHED]
     )
     excluded_ids = set()
     for m in existing_matches:
@@ -115,12 +113,14 @@ def find_match_for_user(user) -> Match | None:
     else:
         user_a, user_b = user, best_candidate
 
-    match = Match.objects.create(
+    match, created = Match.objects.get_or_create(
         user_a=user_a,
         user_b=user_b,
-        compatibility_score=best_score,
-        dimension_scores=best_dim_scores,
-        compatibility_highlights=best_highlights,
         week_number=week,
+        defaults={
+            'compatibility_score': best_score,
+            'dimension_scores': best_dim_scores,
+            'compatibility_highlights': best_highlights,
+        },
     )
     return match
