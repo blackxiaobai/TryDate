@@ -13,6 +13,7 @@ cd ../backend
 rm -rf frontend-dist
 cp -r ../frontend/dist frontend-dist
 
+python manage.py makemigrations --no-input
 python manage.py migrate --no-input
 python manage.py collectstatic --no-input
 
