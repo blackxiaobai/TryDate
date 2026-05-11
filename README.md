@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://img.shields.io/badge/version-v1.1-FF6B8A?style=for-the-badge" alt="version"/>
+<img src="https://img.shields.io/badge/version-v1.2-FF6B8A?style=for-the-badge" alt="version"/>
 <img src="https://img.shields.io/badge/Django-5.0-092E20?style=for-the-badge&logo=django&logoColor=white" alt="django"/>
 <img src="https://img.shields.io/badge/Vue-3-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white" alt="vue"/>
 <img src="https://img.shields.io/badge/WebSocket-实时通信-FF6B8A?style=for-the-badge" alt="websocket"/>
@@ -25,10 +25,10 @@
 
 | 模块 | 功能 |
 |------|------|
-| 🔐 **注册登录** | 邮箱验证码 + 密码双模式登录，JWT 鉴权 |
+| 🔐 **注册登录** | 邮箱验证码 + 密码双模式登录，邮箱格式校验，JWT 鉴权 |
 | 🧠 **灵魂问卷** | 30 道趣味题（含 10 道多选），五维度性格画像 |
-| 💘 **智能匹配** | Gale-Shapley 双向稳定匹配算法，每周推送心动对象 |
-| 🤝 **双向确认** | 心动 / 再想想，双方都选心动才解锁聊天 |
+| 💘 **智能匹配** | 按需触发匹配，每人每周 2 次机会，契合度即时计算 |
+| 🤝 **双向确认** | 心动 / 再想想，双方都选心动才解锁聊天，拒绝不消耗次数 |
 | 💬 **实时聊天** | WebSocket 驱动，支持文字 & 图片消息、打字提示 |
 | 📝 **话题动态** | 支持匿名发布，点赞互动 |
 | 🚩 **举报拉黑** | 一键举报 + 拉黑屏蔽，保障安全 |
@@ -63,7 +63,7 @@ TryDate/
 │   ├── config/              # Django 配置 (settings, urls, asgi)
 │   ├── users/               # 用户注册 / 登录 / 资料 / 邮箱验证码
 │   ├── questionnaire/       # 灵魂问卷（30 题，五维度 JSON 存储）
-│   ├── matching/            # Gale-Shapley 匹配算法 + 契合度计算
+│   ├── matching/            # 按需匹配 + Gale-Shapley 算法 + 契合度计算
 │   ├── chat/                # WebSocket 实时聊天 + 举报拉黑
 │   ├── posts/               # 话题动态（发布 / 点赞 / 匿名）
 │   ├── admin_api/           # 管理后台 API
@@ -112,6 +112,7 @@ cp .env.example .env
 # 编辑 .env 填入数据库密码等配置
 
 # 执行迁移 & 创建管理员
+python manage.py makemigrations
 python manage.py migrate
 python manage.py createsuperuser
 
@@ -184,7 +185,18 @@ Render Web Service
 
 ---
 
-## 🧮 匹配算法
+## 🧮 匹配系统
+
+### 按需匹配
+
+用户点击「开始匹配」按钮，系统即时为用户找到最佳契合对象。
+
+- 每人每周最多成功匹配 **2 次**
+- 选「再想想」不消耗次数，可继续寻找
+- 双方都选「心动」后才计为一次成功匹配
+- 每周一自动重置匹配次数
+
+### 匹配算法
 
 采用 **两阶段方案**：
 
@@ -232,10 +244,10 @@ Render Web Service
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/current/` | 本周匹配 + 契合度报告 |
+| POST | `/request/` | 请求匹配，系统推荐最佳对象 |
+| GET | `/current/` | 当前匹配 + 契合度报告 |
 | POST | `/{id}/respond/` | 心动 / 再想想 |
 | GET | `/history/` | 历史匹配记录 |
-| POST | `/trigger/` | 手动触发匹配（管理员） |
 
 </details>
 
