@@ -18,6 +18,7 @@ DIMENSION_KEYS = {
     'basic': [
         'grade', 'college_direction', 'target_grade_range',
         'height', 'target_height_range', 'relationship_status',
+        'morning_mood',
     ],
     'values': [
         'love_priorities', 'conflict_style', 'long_distance',
@@ -26,12 +27,16 @@ DIMENSION_KEYS = {
     'lifestyle': [
         'sleep_schedule', 'personality_type', 'ideal_weekend',
         'food_style', 'exercise_habit', 'has_pet',
+        'tidiness', 'screen_time',
     ],
     'interests': [
         'hobbies', 'mbti', 'target_traits', 'self_description',
         'campus_activities', 'entertainment',
+        'music_style', 'travel_style', 'study_habits', 'deal_breakers',
     ],
-    'date_pref': ['ideal_first_date', 'when_to_date'],
+    'date_pref': [
+        'ideal_first_date', 'when_to_date', 'date_activities',
+    ],
 }
 
 
@@ -83,7 +88,9 @@ def _calc_dimension_score(a_ans: dict, b_ans: dict, dim: str) -> float:
         av = a_ans.get(k)
         bv = b_ans.get(k)
         if k in ('hobbies', 'target_traits', 'self_description',
-                  'campus_activities', 'entertainment'):
+                  'campus_activities', 'entertainment',
+                  'music_style', 'travel_style', 'study_habits',
+                  'deal_breakers', 'date_activities'):
             scores.append(_multi_choice_score(av or [], bv or []))
         elif k in ('long_distance', 'space_need', 'money_attitude'):
             scores.append(_scale_score(av, bv))
@@ -105,7 +112,7 @@ def generate_highlights(a_ans: dict, b_ans: dict) -> List[str]:
     if a_ans.get('sleep_schedule') and a_ans.get('sleep_schedule') == b_ans.get('sleep_schedule'):
         label = '早鸟' if a_ans['sleep_schedule'] == 'early_bird' else '夜猫子'
         highlights.append(f'你们都是{label}，约好一起{("早餐" if label == "早鸟" else "夜宵")}吧～')
-    for key, name in [('hobbies', '兴趣'), ('entertainment', '娱乐方式')]:
+    for key, name in [('hobbies', '兴趣'), ('entertainment', '娱乐方式'), ('music_style', '音乐品味'), ('travel_style', '旅行方式')]:
         a_set = set(a_ans.get(key) or [])
         b_set = set(b_ans.get(key) or [])
         common = a_set & b_set
@@ -120,6 +127,10 @@ def generate_highlights(a_ans: dict, b_ans: dict) -> List[str]:
     b_desc = set(b_ans.get('self_description') or [])
     if a_desc & b_desc:
         highlights.append(f'你们的自我描述有重合，性格上可能很合拍！')
+    a_date = set(a_ans.get('date_activities') or [])
+    b_date = set(b_ans.get('date_activities') or [])
+    if a_date & b_date:
+        highlights.append('你们理想的约会活动有重合，第一次约会不愁没主意！')
     return highlights[:3]
 
 
