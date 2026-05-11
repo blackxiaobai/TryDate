@@ -92,7 +92,7 @@ def _calc_dimension_score(a_ans: dict, b_ans: dict, dim: str) -> float:
                   'music_style', 'travel_style', 'study_habits',
                   'deal_breakers', 'date_activities'):
             scores.append(_multi_choice_score(av or [], bv or []))
-        elif k in ('long_distance', 'space_need', 'money_attitude'):
+        elif k in ('long_distance', 'space_need'):
             scores.append(_scale_score(av, bv))
         elif k in ('target_height_range',):
             scores.append((_range_score(b_ans.get('height'), av) + _range_score(a_ans.get('height'), bv)) / 2)
