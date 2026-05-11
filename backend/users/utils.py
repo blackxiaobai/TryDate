@@ -18,7 +18,7 @@ def send_email_code(email: str) -> str:
     VerificationCode.objects.create(target=email, code=code, code_type='email')
     try:
         resend.Emails.send({
-            'from': 'TryDate <onboarding@resend.dev>',
+            'from': 'TryDate <noreply@dlnu-love.top>',
             'to': [email],
             'subject': '【TryDate】您的验证码',
             'html': f'<p>您的验证码是：<strong>{code}</strong>，{settings.VERIFICATION_CODE_EXPIRE_MINUTES} 分钟内有效。</p>',
