@@ -57,6 +57,8 @@ class Match(models.Model):
         if self.user_a_action == self.Action.LIKED and self.user_b_action == self.Action.LIKED:
             self.status = self.MatchStatus.MATCHED
             self.save()
+            self.user_a.increment_match_count()
+            self.user_b.increment_match_count()
             self._create_chat_room()
         elif self.Action.PASSED in (self.user_a_action, self.user_b_action):
             self.status = self.MatchStatus.MISSED

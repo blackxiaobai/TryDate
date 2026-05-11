@@ -6,23 +6,91 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import Match
 from .serializers import MatchSerializer
-from .tasks import run_weekly_match, get_week_number
+from .tasks import find_match_for_user, get_week_number
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def request_match(request):
+    user = request.user
+    if not user.is_eligible_for_matching:
+        return Response({'detail': '请先完成灵魂问卷（完成度 ≥ 70%）'}, status=status.HTTP_400_BAD_REQUEST)
+    if not user.can_match:
+        return Response({'detail': '本周匹配次数已用完（2次/周）'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # 检查是否有待处理的匹配
+    week = get_week_number()
+    pending = Match.objects.filter(
+        week_number=week
+    ).filter(
+        Q(user_a=user) | Q(user_b=user)
+    ).filter(
+        status=Match.MatchStatus.PENDING,
+        user_a_action=Match.Action.PENDING,
+        user_b_action=Match.Action.PENDING,
+    ).first()
+
+    if pending:
+        return Response({
+            'matched': True,
+            'match': MatchSerializer(pending, context={'request': request}).data,
+        })
+
+    match = find_match_for_user(user)
+    if not match:
+        return Response({'detail': '暂时没有找到合适的匹配，过段时间再来试试吧～', 'matched': False})
+
+    return Response({
+        'matched': True,
+        'match': MatchSerializer(match, context={'request': request}).data,
+    })
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def current_match(request):
+    user = request.user
+    user.reset_weekly_count_if_needed()
     week = get_week_number()
+
+    # 找到最近一条待处理的匹配
     match = Match.objects.filter(
         week_number=week
     ).filter(
-        Q(user_a=request.user) | Q(user_b=request.user)
+        Q(user_a=user) | Q(user_b=user)
+    ).filter(
+        status=Match.MatchStatus.PENDING,
+        user_a_action=Match.Action.PENDING,
+        user_b_action=Match.Action.PENDING,
     ).first()
 
     if not match:
-        return Response({'detail': '本周缘分还在路上～', 'matched': False})
+        # 检查是否有最近匹配成功的
+        recent = Match.objects.filter(
+            week_number=week
+        ).filter(
+            Q(user_a=user) | Q(user_b=user)
+        ).filter(
+            status=Match.MatchStatus.MATCHED
+        ).order_by('-matched_at').first()
 
-    return Response({'matched': True, 'match': MatchSerializer(match, context={'request': request}).data})
+        if recent:
+            return Response({
+                'matched': True,
+                'match': MatchSerializer(recent, context={'request': request}).data,
+                'remaining': user.MAX_WEEKLY_MATCHES - user.weekly_match_count,
+            })
+
+        return Response({
+            'matched': False,
+            'remaining': user.MAX_WEEKLY_MATCHES - user.weekly_match_count,
+        })
+
+    return Response({
+        'matched': True,
+        'match': MatchSerializer(match, context={'request': request}).data,
+        'remaining': user.MAX_WEEKLY_MATCHES - user.weekly_match_count,
+    })
 
 
 @api_view(['POST'])
@@ -52,7 +120,12 @@ def respond_match(request, match_id):
         return Response({'detail': '已经操作过了'}, status=status.HTTP_400_BAD_REQUEST)
 
     match.set_action_for(request.user, action)
-    return Response(MatchSerializer(match, context={'request': request}).data)
+
+    user = request.user
+    return Response({
+        **MatchSerializer(match, context={'request': request}).data,
+        'remaining': user.MAX_WEEKLY_MATCHES - user.weekly_match_count,
+    })
 
 
 @api_view(['GET'])
@@ -70,5 +143,7 @@ def match_history(request):
 def trigger_match(request):
     if not request.user.is_staff:
         return Response(status=status.HTTP_403_FORBIDDEN)
-    count = run_weekly_match()
-    return Response({'detail': f'匹配完成，生成 {count} 对'})
+    match = find_match_for_user(request.user)
+    if match:
+        return Response({'detail': f'匹配完成', 'match_id': match.id})
+    return Response({'detail': '未找到合适匹配'})

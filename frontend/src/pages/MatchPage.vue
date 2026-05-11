@@ -4,8 +4,8 @@
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-black text-text-main">本周心动 💘</h1>
-        <p class="text-sm text-text-sub">{{ weekLabel }}</p>
+        <h1 class="text-2xl font-black text-text-main">心动匹配 💘</h1>
+        <p class="text-sm text-text-sub">本周剩余 <span class="text-pink-heart font-bold">{{ remaining }}</span> 次匹配机会</p>
       </div>
       <router-link to="/app/history"
         class="text-xs font-bold text-pink-heart bg-pink-pale px-3 py-1.5 rounded-xl">
@@ -18,7 +18,7 @@
       <div class="w-16 h-16 rounded-full bg-gradient-heart animate-pulse-heart flex items-center justify-center">
         <span class="text-2xl">💝</span>
       </div>
-      <p class="text-text-sub font-semibold">缘分正在撮合中…</p>
+      <p class="text-text-sub font-semibold">正在寻找心动对象…</p>
     </div>
 
     <!-- No questionnaire -->
@@ -26,25 +26,28 @@
       <div class="w-24 h-24 rounded-full bg-gradient-soft flex items-center justify-center text-4xl shadow-card">📋</div>
       <div>
         <h3 class="text-xl font-black text-text-main mb-2">先完成灵魂问卷</h3>
-        <p class="text-text-sub text-sm">完成问卷才能参与每周心动匹配哦～</p>
+        <p class="text-text-sub text-sm">完成问卷才能参与心动匹配哦～</p>
       </div>
       <router-link to="/app/questionnaire" class="btn-primary px-8 py-3.5">
         去完成问卷 ✨
       </router-link>
     </div>
 
-    <!-- No match this week -->
+    <!-- No match yet, show find button -->
     <div v-else-if="!matched" class="flex flex-col items-center justify-center min-h-[60vh] gap-5 text-center">
       <div class="relative">
         <div class="w-28 h-28 rounded-full bg-gradient-soft flex items-center justify-center text-5xl shadow-card animate-float">
           🔮
         </div>
-        <div class="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-lilac flex items-center justify-center text-sm shadow">⏳</div>
       </div>
       <div>
-        <h3 class="text-xl font-black text-text-main mb-2">本周缘分还在路上</h3>
-        <p class="text-text-sub text-sm max-w-xs">每周日 20:00 推送心动匹配<br/>先去聊聊天、刷动态吧 🌸</p>
+        <h3 class="text-xl font-black text-text-main mb-2">寻找心动对象</h3>
+        <p class="text-text-sub text-sm max-w-xs">系统会根据你的问卷，为你推荐最契合的人</p>
       </div>
+      <button @click="findMatch" :disabled="requesting || remaining <= 0"
+        class="btn-primary px-10 py-3.5 disabled:opacity-40">
+        {{ requesting ? '正在匹配…' : remaining > 0 ? '开始匹配 💘' : '本周次数已用完' }}
+      </button>
       <div class="flex gap-3">
         <router-link to="/app/posts" class="btn-outline px-5 py-3">逛逛动态</router-link>
         <router-link to="/app/questionnaire" class="btn-primary px-5 py-3">完善问卷</router-link>
@@ -62,7 +65,7 @@
         </div>
       </div>
 
-      <!-- Match card with flip effect -->
+      <!-- Match card -->
       <div class="relative mx-auto max-w-sm">
         <div class="card overflow-hidden p-0">
 
@@ -77,7 +80,6 @@
                   {{ matchData.partner.gender === 'male' ? '🙋‍♂️' : '🙋‍♀️' }}
                 </div>
               </div>
-              <!-- Blur hint -->
               <div v-if="matchData.status !== 'matched'" class="absolute inset-0 flex items-center justify-center">
                 <div class="bg-white/90 rounded-2xl px-3 py-1.5 text-xs font-bold text-pink-heart shadow">
                   双向心动后解锁头像 💝
@@ -85,7 +87,7 @@
               </div>
             </div>
 
-            <!-- Compatibility score badge -->
+            <!-- Compatibility score -->
             <div class="absolute top-4 right-4 bg-white rounded-2xl px-3 py-2 shadow-card text-center">
               <div class="text-2xl font-black text-gradient">{{ matchData.compatibility_score }}%</div>
               <div class="text-[10px] text-text-sub font-semibold">契合度</div>
@@ -111,7 +113,7 @@
               </p>
             </div>
 
-            <!-- Radar chart placeholder -->
+            <!-- Dimension scores -->
             <div class="bg-gradient-soft rounded-2xl p-3 mb-4">
               <p class="text-xs font-bold text-text-sub mb-2">五维契合度</p>
               <div class="space-y-1.5">
@@ -139,7 +141,7 @@
             </div>
 
             <!-- Already acted -->
-            <div v-else-if="matchData.my_action !== 'pending'" class="text-center py-3">
+            <div v-else-if="matchData.my_action !== 'pending' && matchData.status === 'pending'" class="text-center py-3">
               <span v-if="matchData.my_action === 'liked'" class="text-sm font-bold text-pink-heart">
                 💌 你已发出心动，等待对方回应…
               </span>
@@ -152,6 +154,14 @@
                 💬 开始聊天吧！
               </router-link>
             </div>
+
+            <!-- Continue finding after pass or match -->
+            <div v-if="matchData.status === 'missed' || (matchData.status === 'matched' && remaining > 0)" class="mt-3">
+              <button @click="findMatch" :disabled="requesting || remaining <= 0"
+                class="btn-outline w-full py-3.5 disabled:opacity-40">
+                {{ requesting ? '匹配中…' : '继续寻找 💘' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -160,12 +170,6 @@
       <p v-if="matchData.status === 'pending'" class="text-center text-xs text-text-sub mt-3">
         ⏰ 截止时间：{{ deadline }}
       </p>
-    </div>
-
-    <!-- Fallback: matched=true but data still loading -->
-    <div v-else class="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center">
-      <div class="w-16 h-16 rounded-full bg-gradient-soft flex items-center justify-center text-3xl animate-float">💫</div>
-      <p class="text-text-sub font-semibold text-sm">正在加载心动数据…</p>
     </div>
   </div>
 </template>
@@ -181,9 +185,10 @@ const loading = ref(true)
 const matched = ref(false)
 const matchData = ref<any>(null)
 const responding = ref(false)
+const requesting = ref(false)
+const remaining = ref(2)
 
 const needsQuestionnaire = computed(() => auth.needsQuestionnaire)
-const weekLabel = computed(() => `第 ${dayjs().isoWeek()} 周 · ${dayjs().format('YYYY年M月')}`)
 const deadline = computed(() => matchData.value ? dayjs(matchData.value.action_deadline).format('M月D日 HH:mm') : '')
 const statusColor = computed(() => {
   if (!matchData.value) return 'bg-gray-400'
@@ -202,33 +207,50 @@ function dimLabel(dim: string) {
   return map[dim] || dim
 }
 
+async function findMatch() {
+  requesting.value = true
+  try {
+    const res = await matchApi.request()
+    matched.value = res.data.matched
+    if (res.data.matched) {
+      matchData.value = res.data.match
+    }
+    if (res.data.remaining !== undefined) {
+      remaining.value = res.data.remaining
+    }
+  } catch {} finally { requesting.value = false }
+}
+
 async function respond(action: 'liked' | 'passed') {
   if (!matchData.value) return
   responding.value = true
   try {
     const res = await matchApi.respond(matchData.value.id, action)
     matchData.value = res.data
+    if (res.data.remaining !== undefined) {
+      remaining.value = res.data.remaining
+    }
+    // If passed, go back to find screen
+    if (action === 'passed') {
+      setTimeout(() => {
+        matched.value = false
+        matchData.value = null
+      }, 1500)
+    }
   } catch {} finally { responding.value = false }
 }
 
-const matchLoaded = ref(false)
-
-async function loadMatch() {
-  if (matchLoaded.value) return
+async function loadCurrent() {
   if (!auth.user) return
-  matchLoaded.value = true
-
-  if (auth.needsQuestionnaire) {
-    loading.value = false
-    return
-  }
+  if (auth.needsQuestionnaire) { loading.value = false; return }
   try {
     const res = await matchApi.current()
     matched.value = res.data.matched
     if (res.data.matched) matchData.value = res.data.match
-  } catch { /* error toast handled by interceptor */ } finally { loading.value = false }
+    if (res.data.remaining !== undefined) remaining.value = res.data.remaining
+  } catch {} finally { loading.value = false }
 }
 
-onMounted(loadMatch)
-watch(() => auth.user, loadMatch)
+onMounted(loadCurrent)
+watch(() => auth.user, loadCurrent)
 </script>

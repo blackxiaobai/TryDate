@@ -67,6 +67,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     bio = models.CharField(max_length=50, blank=True, default='')
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
     questionnaire_completion = models.PositiveSmallIntegerField(default=0)
+    weekly_match_count = models.PositiveSmallIntegerField(default=0)
+    match_week = models.CharField(max_length=10, default='')
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -87,6 +89,29 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def is_eligible_for_matching(self):
         return self.questionnaire_completion >= 70 and self.status == self.Status.ACTIVE
+
+    MAX_WEEKLY_MATCHES = 2
+
+    def get_current_week(self):
+        from django.utils import timezone
+        return timezone.now().strftime('%Y-W%W')
+
+    def reset_weekly_count_if_needed(self):
+        current_week = self.get_current_week()
+        if self.match_week != current_week:
+            self.weekly_match_count = 0
+            self.match_week = current_week
+            self.save(update_fields=['weekly_match_count', 'match_week'])
+
+    @property
+    def can_match(self):
+        self.reset_weekly_count_if_needed()
+        return self.weekly_match_count < self.MAX_WEEKLY_MATCHES
+
+    def increment_match_count(self):
+        self.reset_weekly_count_if_needed()
+        self.weekly_match_count += 1
+        self.save(update_fields=['weekly_match_count'])
 
 
 class BlackList(models.Model):

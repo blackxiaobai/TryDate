@@ -19,6 +19,7 @@ export const questionnaireApi = {
 }
 
 export const matchApi = {
+  request: () => http.post('/match/request/'),
   current: () => http.get('/match/current/'),
   respond: (id: number, action: 'liked' | 'passed') =>
     http.post(`/match/${id}/respond/`, { action }),
