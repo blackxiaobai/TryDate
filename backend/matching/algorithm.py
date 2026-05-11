@@ -59,7 +59,10 @@ def _single_choice_score(a, b) -> float:
 def _scale_score(a, b, max_val=5) -> float:
     if a is None or b is None:
         return 0.5
-    return 1.0 - abs(float(a) - float(b)) / (max_val - 1)
+    try:
+        return 1.0 - abs(float(a) - float(b)) / (max_val - 1)
+    except (TypeError, ValueError):
+        return _single_choice_score(a, b)
 
 
 def _multi_choice_score(a: list, b: list) -> float:
