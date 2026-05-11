@@ -54,7 +54,10 @@
           </template>
 
           <!-- Email input -->
-          <input v-model="email" type="email" placeholder="输入邮箱地址" class="input-field" required />
+          <div>
+            <input v-model="email" type="email" placeholder="输入邮箱地址" class="input-field" required />
+            <p v-if="email && !emailValid" class="text-xs text-red-400 mt-1 ml-1">请输入正确的邮箱格式，如 xxx@xx.com</p>
+          </div>
 
           <!-- Password input (register always, login password mode) -->
           <template v-if="isRegister || loginMode === 'password'">
@@ -108,7 +111,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeftIcon } from 'lucide-vue-next'
 import { toast } from 'vue3-toastify'
@@ -130,10 +133,12 @@ const loading = ref(false)
 const sendingCode = ref(false)
 const countdown = ref(0)
 
+const emailValid = computed(() => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.value))
+
 let timer: ReturnType<typeof setInterval>
 
 async function sendCode() {
-  if (!email.value) { toast.error('请先填写邮箱地址'); return }
+  if (!emailValid.value) { toast.error('请输入正确的邮箱格式'); return }
   sendingCode.value = true
   try {
     await userApi.sendCode(email.value, 'email')
