@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://img.shields.io/badge/version-v1.0-FF6B8A?style=for-the-badge" alt="version"/>
+<img src="https://img.shields.io/badge/version-v1.1-FF6B8A?style=for-the-badge" alt="version"/>
 <img src="https://img.shields.io/badge/Django-5.0-092E20?style=for-the-badge&logo=django&logoColor=white" alt="django"/>
 <img src="https://img.shields.io/badge/Vue-3-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white" alt="vue"/>
 <img src="https://img.shields.io/badge/WebSocket-实时通信-FF6B8A?style=for-the-badge" alt="websocket"/>
@@ -26,7 +26,7 @@
 | 模块 | 功能 |
 |------|------|
 | 🔐 **注册登录** | 邮箱验证码 + 密码双模式登录，JWT 鉴权 |
-| 🧠 **灵魂问卷** | 20 道趣味题（含 5 道多选），五维度性格画像 |
+| 🧠 **灵魂问卷** | 30 道趣味题（含 10 道多选），五维度性格画像 |
 | 💘 **智能匹配** | Gale-Shapley 双向稳定匹配算法，每周推送心动对象 |
 | 🤝 **双向确认** | 心动 / 再想想，双方都选心动才解锁聊天 |
 | 💬 **实时聊天** | WebSocket 驱动，支持文字 & 图片消息、打字提示 |
@@ -44,11 +44,13 @@
 数据库        PostgreSQL
 缓存 & 频道   Redis
 身份认证      JWT (djangorestframework-simplejwt)
+邮件服务      Resend API（HTTP，不受端口限制）
 前端          Vue 3 + TypeScript + Vite + TailwindCSS
 状态管理      Pinia
 路由          Vue Router 4 (路由守卫)
 UI 组件      Lucide Icons + vue3-toastify
 匹配算法      Gale-Shapley 双向稳定匹配
+部署          Render（全栈） + 自定义域名
 ```
 
 ---
@@ -60,12 +62,13 @@ TryDate/
 ├── backend/
 │   ├── config/              # Django 配置 (settings, urls, asgi)
 │   ├── users/               # 用户注册 / 登录 / 资料 / 邮箱验证码
-│   ├── questionnaire/       # 灵魂问卷（20 题，五维度 JSON 存储）
+│   ├── questionnaire/       # 灵魂问卷（30 题，五维度 JSON 存储）
 │   ├── matching/            # Gale-Shapley 匹配算法 + 契合度计算
 │   ├── chat/                # WebSocket 实时聊天 + 举报拉黑
 │   ├── posts/               # 话题动态（发布 / 点赞 / 匿名）
 │   ├── admin_api/           # 管理后台 API
 │   ├── build.sh             # Render 部署构建脚本
+│   ├── runtime.txt          # Python 版本指定
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
@@ -157,6 +160,7 @@ Render Web Service
 4. Start Command: `daphne -b 0.0.0.0 -p $PORT config.asgi:application`
 5. 添加 PostgreSQL 和 Redis 实例
 6. 设置环境变量（见下方清单）
+7. （可选）绑定自定义域名，添加 CNAME 记录指向 `trydate.onrender.com`
 
 ### 环境变量
 
@@ -169,9 +173,12 @@ Render Web Service
 | `CSRF_TRUSTED_ORIGINS` | 前端域名，逗号分隔 |
 | `DATABASE_URL` | Render PostgreSQL 连接串 |
 | `REDIS_URL` | Render Redis 连接串 |
-| `EMAIL_HOST` | SMTP 服务器 |
+| `RESEND_API_KEY` | Resend 邮件服务 API Key |
+| `EMAIL_HOST` | SMTP 服务器（本地开发用） |
 | `EMAIL_HOST_USER` | 发件邮箱 |
 | `EMAIL_HOST_PASSWORD` | 邮箱授权码 |
+
+> **邮件服务说明**：生产环境使用 [Resend](https://resend.com) HTTP API 发送验证码邮件，不受 Render 端口限制。需要在 Resend 绑定发信域名并添加 DNS 记录。
 
 构建脚本会自动安装前端依赖、构建 Vue 项目、执行数据库迁移并创建管理员账号。
 
@@ -181,7 +188,7 @@ Render Web Service
 
 采用 **两阶段方案**：
 
-1. **契合度计算** — 基于 20 道问卷答案，五维加权评分（满分 100）
+1. **契合度计算** — 基于 30 道问卷答案，五维加权评分（满分 100）
 2. **Gale-Shapley 双向稳定匹配** — 保证匹配结果的稳定性，消除不稳定配对
 
 ```
