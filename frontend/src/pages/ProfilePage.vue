@@ -108,14 +108,14 @@
           </div>
           <ChevronRightIcon class="w-4 h-4 text-text-sub" />
         </router-link>
-        <a href="mailto:2901926501@qq.com?subject=TryDate意见反馈"
-          class="flex items-center justify-between py-3 border-b border-lilac-pale/50">
+        <button @click="showFeedback = true"
+          class="w-full flex items-center justify-between py-3 border-b border-lilac-pale/50">
           <div class="flex items-center gap-3">
             <span class="w-8 h-8 rounded-xl bg-gradient-soft flex items-center justify-center text-sm">📮</span>
             <span class="font-semibold text-text-main text-sm">意见反馈</span>
           </div>
           <ChevronRightIcon class="w-4 h-4 text-text-sub" />
-        </a>
+        </button>
         <button @click="logout" class="w-full flex items-center justify-between py-3">
           <div class="flex items-center gap-3">
             <span class="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center text-sm">🚪</span>
@@ -123,6 +123,23 @@
           </div>
           <ChevronRightIcon class="w-4 h-4 text-text-sub" />
         </button>
+      </div>
+    </div>
+
+    <!-- Feedback dialog -->
+    <div v-if="showFeedback" @click.self="showFeedback=false"
+      class="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-end">
+      <div class="w-full bg-white rounded-t-3xl p-6 space-y-4 animate-slide-up">
+        <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-2"></div>
+        <h3 class="text-lg font-black text-text-main text-center">意见反馈</h3>
+        <p class="text-sm text-text-sub text-center leading-relaxed">
+          感谢使用 TryDate！如果你在使用过程中遇到任何问题，或有好的建议，欢迎发送邮件至：
+        </p>
+        <div class="bg-cream rounded-2xl px-4 py-3 text-center">
+          <p class="text-base font-black text-pink-heart select-all">2901926501@qq.com</p>
+        </div>
+        <p class="text-xs text-text-sub text-center">我们会尽快查看并回复你的反馈 💝</p>
+        <button @click="showFeedback=false" class="btn-primary w-full py-3">我知道了</button>
       </div>
     </div>
   </div>
@@ -139,6 +156,7 @@ import { useAuthStore } from '@/stores/auth'
 const router = useRouter()
 const auth = useAuthStore()
 const editing = ref(false)
+const showFeedback = ref(false)
 const user = computed(() => auth.user)
 
 const form = reactive({ nickname: '', bio: '', grade: '', college_direction: '', gender_preference: '', birth_year: '' })
