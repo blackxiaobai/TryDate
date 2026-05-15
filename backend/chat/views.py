@@ -83,7 +83,22 @@ def upload_image(request, room_id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def report_user(request):
-    serializer = ReportSerializer(data=request.data, context={'request': request})
+    data = request.data.copy()
+    # 举报动态/评论时自动填充 target_user
+    if not data.get('target_user'):
+        if data.get('target_post'):
+            from posts.models import Post
+            try:
+                data['target_user'] = str(Post.objects.get(id=data['target_post']).author_id)
+            except Post.DoesNotExist:
+                pass
+        elif data.get('target_comment'):
+            from posts.models import Comment
+            try:
+                data['target_user'] = str(Comment.objects.get(id=data['target_comment']).author_id)
+            except Comment.DoesNotExist:
+                pass
+    serializer = ReportSerializer(data=data, context={'request': request})
     serializer.is_valid(raise_exception=True)
     serializer.save()
     return Response({'detail': '举报已提交，我们会尽快处理'}, status=status.HTTP_201_CREATED)
