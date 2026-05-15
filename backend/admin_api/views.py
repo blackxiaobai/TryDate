@@ -237,3 +237,16 @@ def resolve_report(request, report_id):
     report.status = action
     report.save(update_fields=['status'])
     return Response({'detail': f'已更新为{action}'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@staff_required
+def reset_match_count(request, user_id):
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({'detail': '用户不存在'}, status=404)
+    user.weekly_match_count = 0
+    user.save(update_fields=['weekly_match_count'])
+    return Response({'detail': f'已重置 {user.nickname} 的匹配次数'})

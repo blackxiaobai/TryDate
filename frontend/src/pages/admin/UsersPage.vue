@@ -56,7 +56,11 @@
               </div>
             </td>
             <td class="px-4 py-3 text-text-sub text-xs">{{ formatDate(user.created_at) }}</td>
-            <td class="px-4 py-3 text-right">
+            <td class="px-4 py-3 text-right space-x-2">
+              <button v-if="user.status === 'active' && !user.is_staff"
+                @click="resetMatch(user)" class="text-xs font-bold text-amber hover:text-amber/80 transition-colors">
+                重置匹配
+              </button>
               <button v-if="user.status === 'active' && !user.is_staff"
                 @click="banUser(user)" class="text-xs font-bold text-red-500 hover:text-red-600 transition-colors">
                 封禁
@@ -129,6 +133,11 @@ async function unbanUser(user: any) {
   await adminApi.unbanUser(user.id)
   toast.success(`已解封 ${user.nickname}`)
   fetchUsers()
+}
+
+async function resetMatch(user: any) {
+  await adminApi.resetMatchCount(user.id)
+  toast.success(`已重置 ${user.nickname} 的匹配次数`)
 }
 
 function formatDate(d: string) { return dayjs(d).format('YYYY-MM-DD') }

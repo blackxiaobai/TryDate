@@ -43,4 +43,10 @@ class ReportSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data['reporter'] = self.context['request'].user
+        # 举报动态时自动填充 target_user 为动态作者
+        if validated_data.get('target_post') and not validated_data.get('target_user'):
+            validated_data['target_user'] = validated_data['target_post'].author
+        # 举报评论时自动填充 target_user 为评论作者
+        if validated_data.get('target_comment') and not validated_data.get('target_user'):
+            validated_data['target_user'] = validated_data['target_comment'].author
         return super().create(validated_data)

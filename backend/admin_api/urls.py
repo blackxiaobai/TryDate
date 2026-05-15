@@ -6,6 +6,7 @@ urlpatterns = [
     path('users/', views.user_list, name='admin-users'),
     path('users/<uuid:user_id>/ban/', views.ban_user, name='admin-ban-user'),
     path('users/<uuid:user_id>/unban/', views.unban_user, name='admin-unban-user'),
+    path('users/<uuid:user_id>/reset-match/', views.reset_match_count, name='admin-reset-match'),
     path('matches/', views.match_list, name='admin-matches'),
     path('posts/', views.post_list, name='admin-posts'),
     path('posts/<int:post_id>/hide/', views.hide_post, name='admin-hide-post'),

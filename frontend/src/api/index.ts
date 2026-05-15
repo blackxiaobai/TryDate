@@ -51,6 +51,7 @@ export const adminApi = {
   users: (params?: Record<string, string>) => http.get('/admin/users/', { params }),
   banUser: (id: string) => http.post(`/admin/users/${id}/ban/`),
   unbanUser: (id: string) => http.post(`/admin/users/${id}/unban/`),
+  resetMatchCount: (id: string) => http.post(`/admin/users/${id}/reset-match/`),
   matches: (params?: Record<string, string>) => http.get('/admin/matches/', { params }),
   posts: (params?: Record<string, string>) => http.get('/admin/posts/', { params }),
   hidePost: (id: number) => http.post(`/admin/posts/${id}/hide/`),
