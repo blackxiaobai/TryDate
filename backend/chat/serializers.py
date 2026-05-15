@@ -39,7 +39,7 @@ class ChatRoomSerializer(serializers.ModelSerializer):
 class ReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = Report
-        fields = ['id', 'target_user', 'target_message', 'reason', 'description']
+        fields = ['id', 'target_user', 'target_message', 'target_post', 'target_comment', 'reason', 'description']
 
     def create(self, validated_data):
         validated_data['reporter'] = self.context['request'].user

@@ -178,6 +178,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { matchApi } from '@/api'
+import { toast } from 'vue3-toastify'
 import dayjs from 'dayjs'
 
 const auth = useAuthStore()
@@ -214,6 +215,8 @@ async function findMatch() {
     matched.value = res.data.matched
     if (res.data.matched) {
       matchData.value = res.data.match
+    } else {
+      toast.info(res.data.detail || '暂时没有找到合适的匹配，过段时间再来试试吧～')
     }
     if (res.data.remaining !== undefined) {
       remaining.value = res.data.remaining

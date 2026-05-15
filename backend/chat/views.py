@@ -11,6 +11,21 @@ from users.models import BlackList
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+def room_detail(request, room_id):
+    try:
+        room = ChatRoom.objects.select_related('match__user_a', 'match__user_b').get(id=room_id)
+    except ChatRoom.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.user not in (room.match.user_a, room.match.user_b):
+        return Response(status=status.HTTP_403_FORBIDDEN)
+
+    serializer = ChatRoomSerializer(room, context={'request': request})
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def room_list(request):
     rooms = ChatRoom.objects.filter(
         Q(match__user_a=request.user) | Q(match__user_b=request.user),

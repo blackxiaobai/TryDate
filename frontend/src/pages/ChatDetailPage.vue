@@ -29,7 +29,7 @@
             :class="msg.sender_id === myId
               ? 'bg-gradient-heart text-white rounded-br-md'
               : 'bg-white text-text-main rounded-bl-md'">
-            <img v-if="msg.msg_type === 'image'" :src="msg.content" class="rounded-xl max-w-[200px]" />
+            <span v-if="msg.msg_type === 'image'">[图片]</span>
             <span v-else>{{ msg.content }}</span>
           </div>
           <p class="text-[10px] text-text-sub mt-1"
@@ -52,10 +52,6 @@
     <div class="glass bg-white/95 border-t border-white/60 px-4 pt-3 pb-safe safe-bottom"
       style="padding-bottom: max(12px, env(safe-area-inset-bottom))">
       <div class="flex items-end gap-2 max-w-lg mx-auto">
-        <label class="w-10 h-10 rounded-xl bg-lilac-pale flex items-center justify-center cursor-pointer shrink-0 active:scale-95 transition-transform">
-          <ImageIcon class="w-5 h-5 text-lilac-deep" />
-          <input type="file" accept="image/*" class="hidden" @change="sendImage" />
-        </label>
         <div class="flex-1 relative">
           <textarea v-model="inputText" @keydown.enter.prevent="sendMessage"
             placeholder="说点什么…" rows="1"
@@ -113,7 +109,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeftIcon, MoreHorizontalIcon, ImageIcon, SendIcon, FlagIcon, BanIcon } from 'lucide-vue-next'
+import { ArrowLeftIcon, MoreHorizontalIcon, SendIcon, FlagIcon, BanIcon } from 'lucide-vue-next'
 import { toast } from 'vue3-toastify'
 import { chatApi } from '@/api'
 import { useAuthStore } from '@/stores/auth'
@@ -131,12 +127,9 @@ const msgContainer = ref<HTMLElement>()
 const partnerTyping = ref(false)
 const partnerName = ref('...')
 const partnerAvatar = ref('')
+const partnerId = ref('')
 
 const myId = computed(() => auth.user?.id)
-const partnerId = computed(() => {
-  const msg = messages.value.find(m => m.sender_id !== myId.value)
-  return msg?.sender_id || ''
-})
 let ws: WebSocket | null = null
 
 const showReport = ref(false)
@@ -159,18 +152,6 @@ async function sendMessage() {
   ws?.send(JSON.stringify({ type: 'text', content: text }))
   inputText.value = ''
   sending.value = false
-}
-
-async function sendImage(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  const fd = new FormData()
-  fd.append('image', file)
-  try {
-    const res = await chatApi.uploadImage(parseInt(roomId), fd)
-    messages.value.push(res.data)
-    scrollBottom()
-  } catch { toast.error('图片发送失败') }
 }
 
 function scrollBottom() {
@@ -217,6 +198,12 @@ async function blockUser() {
 }
 
 onMounted(async () => {
+  try {
+    const roomRes = await chatApi.roomDetail(parseInt(roomId))
+    partnerId.value = roomRes.data.partner.id
+    partnerName.value = roomRes.data.partner.nickname
+    partnerAvatar.value = roomRes.data.partner.avatar_url || ''
+  } catch {}
   try {
     const res = await chatApi.messages(parseInt(roomId))
     messages.value = res.data

@@ -42,6 +42,9 @@
             <div v-if="post.is_anonymous" class="ml-auto">
               <span class="text-[10px] bg-lilac-pale text-lilac-deep px-2 py-0.5 rounded-full font-semibold">匿名</span>
             </div>
+            <button @click="openReportPost(post)" class="ml-auto text-text-sub active:scale-90 transition-transform">
+              <FlagIcon class="w-4 h-4" />
+            </button>
           </div>
 
           <!-- Content -->
@@ -55,6 +58,48 @@
               <HeartIcon class="w-4 h-4" :class="post.is_liked ? 'fill-pink-heart' : ''" />
               <span class="text-xs font-bold">{{ post.like_count }}</span>
             </button>
+            <button @click="toggleComments(post)"
+              class="flex items-center gap-1.5 text-text-sub transition-transform active:scale-110">
+              <MessageCircleIcon class="w-4 h-4" />
+              <span class="text-xs font-bold">{{ post.comment_count }}</span>
+            </button>
+          </div>
+
+          <!-- Comments section -->
+          <div v-if="post._showComments" class="mt-3 space-y-2 animate-slide-up">
+            <div v-if="post._loadingComments" class="text-center py-2">
+              <span class="text-xs text-text-sub">加载评论中…</span>
+            </div>
+            <template v-else>
+              <div v-for="c in post._comments" :key="c.id" class="flex items-start gap-2 bg-cream/50 rounded-xl px-3 py-2">
+                <span class="text-xs mt-0.5">{{ c.is_anonymous ? '🎭' : '🌸' }}</span>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-text-main">{{ c.author_display }}</span>
+                    <span class="text-[10px] text-text-sub">{{ formatTime(c.created_at) }}</span>
+                    <button @click="openReportComment(post, c)" class="ml-auto text-text-sub/50 active:scale-90">
+                      <FlagIcon class="w-3 h-3" />
+                    </button>
+                  </div>
+                  <p class="text-xs text-text-main mt-0.5">{{ c.content }}</p>
+                </div>
+              </div>
+              <div v-if="post._comments?.length === 0" class="text-center py-1">
+                <span class="text-[11px] text-text-sub">暂无评论，来说两句吧～</span>
+              </div>
+              <!-- Comment input -->
+              <div class="flex items-center gap-2 mt-1">
+                <input v-model="post._newComment" placeholder="写评论…" maxlength="100"
+                  class="flex-1 px-3 py-1.5 rounded-xl bg-cream text-xs text-text-main placeholder-text-sub outline-none focus:ring-1 focus:ring-lilac" />
+                <button @click="post._newAnonymous = !post._newAnonymous"
+                  class="text-[10px] px-2 py-1 rounded-lg transition-colors"
+                  :class="post._newAnonymous ? 'bg-lilac-pale text-lilac-deep' : 'bg-cream text-text-sub'">
+                  {{ post._newAnonymous ? '匿名' : '公开' }}
+                </button>
+                <button @click="submitComment(post)" :disabled="!post._newComment?.trim()"
+                  class="text-xs font-bold text-pink-heart disabled:opacity-30">发送</button>
+              </div>
+            </template>
           </div>
         </div>
       </transition-group>
@@ -90,14 +135,37 @@
         </button>
       </div>
     </div>
+
+    <!-- Report dialog -->
+    <div v-if="showReport" @click.self="showReport=false"
+      class="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-end">
+      <div class="w-full bg-white rounded-t-3xl p-5 space-y-3 animate-slide-up">
+        <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-2"></div>
+        <h3 class="font-black text-text-main text-sm">举报原因</h3>
+        <div class="flex flex-wrap gap-2">
+          <button v-for="(label, key) in reportReasons" :key="key"
+            @click="reportReason = key"
+            class="px-4 py-2 rounded-xl text-xs font-bold transition-all"
+            :class="reportReason === key ? 'bg-amber/20 text-amber ring-2 ring-amber/30' : 'bg-gray-100 text-text-sub'">
+            {{ label }}
+          </button>
+        </div>
+        <textarea v-model="reportDesc" placeholder="补充说明（可选）" rows="2"
+          class="w-full px-4 py-2.5 rounded-2xl bg-cream border-2 border-transparent text-sm text-text-main placeholder-text-sub outline-none focus:border-amber/40 resize-none" />
+        <button @click="submitReport" :disabled="!reportReason || reporting"
+          class="w-full py-3 rounded-2xl bg-gradient-heart text-white font-bold text-sm disabled:opacity-40">
+          {{ reporting ? '提交中…' : '提交举报' }}
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { PlusIcon, HeartIcon } from 'lucide-vue-next'
+import { PlusIcon, HeartIcon, MessageCircleIcon, FlagIcon } from 'lucide-vue-next'
 import { toast } from 'vue3-toastify'
-import { postsApi } from '@/api'
+import { postsApi, chatApi } from '@/api'
 import dayjs from 'dayjs'
 
 const loading = ref(true)
@@ -107,9 +175,22 @@ const newContent = ref('')
 const isAnonymous = ref(false)
 const publishing = ref(false)
 
+// Report state
+const showReport = ref(false)
+const reportReason = ref('')
+const reportDesc = ref('')
+const reporting = ref(false)
+const reportTarget = ref<{ type: 'post' | 'comment', postId?: number, commentId?: number }>({ type: 'post' })
+const reportReasons: Record<string, string> = {
+  harassment: '骚扰/辱骂',
+  inappropriate_content: '不当内容',
+  fake: '虚假信息',
+  other: '其他',
+}
+
 function formatTime(t: string) {
   const d = dayjs(t)
-  if (d.isToday()) return '今天 ' + d.format('HH:mm')
+  if (dayjs().isSame(d, 'day')) return '今天 ' + d.format('HH:mm')
   return d.format('M月D日')
 }
 
@@ -126,17 +207,81 @@ async function publishPost() {
   publishing.value = true
   try {
     const res = await postsApi.create({ content: newContent.value.trim(), is_anonymous: isAnonymous.value })
-    posts.value.unshift(res.data)
+    posts.value.unshift({ ...res.data, _showComments: false, _comments: [], _newComment: '', _newAnonymous: false, _loadingComments: false })
     newContent.value = ''
     showCompose.value = false
     toast.success('发布成功 🌸')
   } catch {} finally { publishing.value = false }
 }
 
+async function toggleComments(post: any) {
+  if (post._showComments) {
+    post._showComments = false
+    return
+  }
+  post._showComments = true
+  if (!post._comments) {
+    post._loadingComments = true
+    post._comments = []
+    try {
+      const res = await postsApi.comments(post.id)
+      post._comments = res.data
+    } catch {} finally { post._loadingComments = false }
+  }
+}
+
+async function submitComment(post: any) {
+  const content = post._newComment?.trim()
+  if (!content) return
+  try {
+    const res = await postsApi.comment(post.id, { content, is_anonymous: post._newAnonymous || false })
+    post._comments.push(res.data)
+    post.comment_count = (post.comment_count || 0) + 1
+    post._newComment = ''
+  } catch { toast.error('评论失败') }
+}
+
+function openReportPost(post: any) {
+  reportTarget.value = { type: 'post', postId: post.id }
+  reportReason.value = ''
+  reportDesc.value = ''
+  showReport.value = true
+}
+
+function openReportComment(post: any, comment: any) {
+  reportTarget.value = { type: 'comment', postId: post.id, commentId: comment.id }
+  reportReason.value = ''
+  reportDesc.value = ''
+  showReport.value = true
+}
+
+async function submitReport() {
+  if (!reportReason.value || reporting.value) return
+  reporting.value = true
+  try {
+    const data: any = { reason: reportReason.value, description: reportDesc.value || undefined }
+    if (reportTarget.value.type === 'post') {
+      data.target_post = reportTarget.value.postId
+    } else {
+      data.target_comment = reportTarget.value.commentId
+    }
+    await chatApi.report(data)
+    toast.success('举报已提交，我们会尽快处理')
+    showReport.value = false
+  } catch { toast.error('举报失败') } finally { reporting.value = false }
+}
+
 onMounted(async () => {
   try {
     const res = await postsApi.list()
-    posts.value = res.data.results || res.data
+    posts.value = (res.data.results || res.data).map((p: any) => ({
+      ...p,
+      _showComments: false,
+      _comments: null,
+      _newComment: '',
+      _newAnonymous: false,
+      _loadingComments: false,
+    }))
   } catch {} finally { loading.value = false }
 })
 </script>

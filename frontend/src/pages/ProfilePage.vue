@@ -108,6 +108,14 @@
           </div>
           <ChevronRightIcon class="w-4 h-4 text-text-sub" />
         </router-link>
+        <a href="mailto:2901926501@qq.com?subject=TryDate意见反馈"
+          class="flex items-center justify-between py-3 border-b border-lilac-pale/50">
+          <div class="flex items-center gap-3">
+            <span class="w-8 h-8 rounded-xl bg-gradient-soft flex items-center justify-center text-sm">📮</span>
+            <span class="font-semibold text-text-main text-sm">意见反馈</span>
+          </div>
+          <ChevronRightIcon class="w-4 h-4 text-text-sub" />
+        </a>
         <button @click="logout" class="w-full flex items-center justify-between py-3">
           <div class="flex items-center gap-3">
             <span class="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center text-sm">🚪</span>

@@ -48,7 +48,7 @@
         <router-link to="/login" class="btn-primary w-full text-base py-4 shadow-glow">
           开始心动之旅 💘
         </router-link>
-        <p class="text-xs text-text-sub">已有 2000+ 同学在寻找 ta</p>
+        <p class="text-xs text-text-sub">校园心动，从这里开始</p>
       </div>
 
       <!-- Feature chips -->
@@ -58,6 +58,13 @@
         </span>
       </div>
     </main>
+
+    <!-- 免责声明 -->
+    <div class="relative z-10 px-6 pb-6 text-center">
+      <p class="text-[10px] text-text-sub/60 leading-relaxed max-w-xs mx-auto">
+        本平台仅供大学生交友使用，请遵守相关法律法规。用户需对自身行为负责，平台不对用户间纠纷承担责任。
+      </p>
+    </div>
 
     <!-- Decorative bottom blob -->
     <div class="absolute bottom-0 left-0 right-0 h-32 pointer-events-none">

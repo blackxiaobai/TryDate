@@ -28,9 +28,8 @@ export const matchApi = {
 
 export const chatApi = {
   rooms: () => http.get('/chat/rooms/'),
+  roomDetail: (roomId: number) => http.get(`/chat/rooms/${roomId}/`),
   messages: (roomId: number) => http.get(`/chat/rooms/${roomId}/messages/`),
-  uploadImage: (roomId: number, formData: FormData) =>
-    http.post(`/chat/rooms/${roomId}/upload/`, formData),
   report: (data: object) => http.post('/chat/report/', data),
   block: (userId: string) => http.post(`/chat/block/${userId}/`),
   unblock: (userId: string) => http.delete(`/chat/unblock/${userId}/`),
@@ -42,6 +41,9 @@ export const postsApi = {
     http.post('/posts/create/', data),
   like: (id: number) => http.post(`/posts/${id}/like/`),
   delete: (id: number) => http.delete(`/posts/${id}/delete/`),
+  comments: (postId: number) => http.get(`/posts/${postId}/comments/`),
+  comment: (postId: number, data: { content: string; is_anonymous: boolean }) =>
+    http.post(`/posts/${postId}/comment/`, data),
 }
 
 export const adminApi = {

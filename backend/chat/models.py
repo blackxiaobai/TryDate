@@ -68,6 +68,12 @@ class Report(models.Model):
     target_message = models.ForeignKey(
         Message, on_delete=models.SET_NULL, null=True, blank=True
     )
+    target_post = models.ForeignKey(
+        'posts.Post', on_delete=models.SET_NULL, null=True, blank=True
+    )
+    target_comment = models.ForeignKey(
+        'posts.Comment', on_delete=models.SET_NULL, null=True, blank=True
+    )
     reason = models.CharField(max_length=30, choices=Reason.choices)
     description = models.TextField(blank=True, default='')
     status = models.CharField(max_length=10, choices=ReportStatus.choices, default=ReportStatus.PENDING)
