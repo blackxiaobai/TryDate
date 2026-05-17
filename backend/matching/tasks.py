@@ -61,6 +61,8 @@ def find_match_for_user(user) -> Match | None:
         excluded_ids.add(b_id)
     # 把当前用户自己从排除列表移除（自己的待处理不应该排除自己）
     excluded_ids.discard(user.id)
+    # 但永远不能匹配自己，重新加回来
+    excluded_ids.add(user.id)
 
     # 性别偏好筛选
     if user.gender == User.Gender.MALE:
@@ -118,7 +120,7 @@ def find_match_for_user(user) -> Match | None:
             best_dim_scores = dim_scores
             best_highlights = generate_highlights(user_answers, candidate_answers)
 
-    if not best_candidate or best_score < 20:
+    if not best_candidate or best_score < 20 or best_candidate.id == user.id:
         return None
 
     # 确保 user_a < user_b（规范化）
