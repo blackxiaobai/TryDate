@@ -22,14 +22,19 @@ def find_match_for_user(user) -> Match | None:
 
     week = get_week_number()
 
-    # 排除：本周已有匹配记录的用户（不论状态）
-    existing_matches = Match.objects.filter(
+    excluded_ids = set()
+    excluded_ids.add(user.id)  # 永远不能匹配自己
+
+    # 排除：本周未错过（pending / matched）的匹配对象
+    # 已错过的（missed）可以重新进入牌库被再次匹配
+    active_matches = Match.objects.filter(
         week_number=week
     ).filter(
         Q(user_a=user) | Q(user_b=user)
+    ).exclude(
+        status=Match.MatchStatus.MISSED
     )
-    excluded_ids = set()
-    for m in existing_matches:
+    for m in active_matches:
         if m.user_a_id == user.id:
             excluded_ids.add(m.user_b_id)
         else:
@@ -40,7 +45,6 @@ def find_match_for_user(user) -> Match | None:
     blocked_by = set(BlackList.objects.filter(blocked=user).values_list('blocker_id', flat=True))
     excluded_ids.update(blocked)
     excluded_ids.update(blocked_by)
-    excluded_ids.add(user.id)
 
     # 排除：本周匹配次数已用完的用户
     matched_out = User.objects.filter(
@@ -48,19 +52,6 @@ def find_match_for_user(user) -> Match | None:
         match_week=week,
     ).values_list('id', flat=True)
     excluded_ids.update(matched_out)
-
-    # 排除：有待处理匹配尚未回应的用户（避免一个人同时被多个人匹配）
-    pending_users = Match.objects.filter(
-        week_number=week,
-        status=Match.MatchStatus.PENDING,
-    ).filter(
-        Q(user_a_action=Match.Action.PENDING) | Q(user_b_action=Match.Action.PENDING)
-    ).values_list('user_a_id', 'user_b_id')
-    for a_id, b_id in pending_users:
-        excluded_ids.add(a_id)
-        excluded_ids.add(b_id)
-    # 把当前用户自己从排除列表移除（自己的待处理不应该排除自己）
-    excluded_ids.discard(user.id)
 
     # 性别偏好筛选
     if user.gender == User.Gender.MALE:
@@ -118,7 +109,7 @@ def find_match_for_user(user) -> Match | None:
             best_dim_scores = dim_scores
             best_highlights = generate_highlights(user_answers, candidate_answers)
 
-    if not best_candidate or best_score < 20:
+    if not best_candidate or best_score < 20 or best_candidate.id == user.id:
         return None
 
     # 确保 user_a < user_b（规范化）
@@ -126,6 +117,12 @@ def find_match_for_user(user) -> Match | None:
         user_a, user_b = best_candidate, user
     else:
         user_a, user_b = user, best_candidate
+
+    # 如果之前有已错过的匹配，清除后重新创建
+    Match.objects.filter(
+        user_a=user_a, user_b=user_b, week_number=week,
+        status=Match.MatchStatus.MISSED,
+    ).delete()
 
     match, created = Match.objects.get_or_create(
         user_a=user_a,
