@@ -18,16 +18,15 @@ def request_match(request):
     if not user.can_match:
         return Response({'detail': '本周匹配次数已用完（2次/周）'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # 检查是否有待处理的匹配
+    # 检查是否有用户尚未回应的待处理匹配
     week = get_week_number()
     pending = Match.objects.filter(
         week_number=week
     ).filter(
-        Q(user_a=user) | Q(user_b=user)
+        Q(user_a=user, user_a_action=Match.Action.PENDING) |
+        Q(user_b=user, user_b_action=Match.Action.PENDING)
     ).filter(
         status=Match.MatchStatus.PENDING,
-        user_a_action=Match.Action.PENDING,
-        user_b_action=Match.Action.PENDING,
     ).first()
 
     if pending:
@@ -53,15 +52,14 @@ def current_match(request):
     user.reset_weekly_count_if_needed()
     week = get_week_number()
 
-    # 找到最近一条待处理的匹配
+    # 找到用户尚未回应的待处理匹配（即使对方已回应也要显示）
     match = Match.objects.filter(
         week_number=week
     ).filter(
-        Q(user_a=user) | Q(user_b=user)
+        Q(user_a=user, user_a_action=Match.Action.PENDING) |
+        Q(user_b=user, user_b_action=Match.Action.PENDING)
     ).filter(
         status=Match.MatchStatus.PENDING,
-        user_a_action=Match.Action.PENDING,
-        user_b_action=Match.Action.PENDING,
     ).first()
 
     if not match:

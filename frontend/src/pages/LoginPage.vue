@@ -103,8 +103,8 @@
 
       <p class="text-center text-xs text-text-sub mt-4 px-4">
         注册即表示同意
-        <span class="text-pink-heart font-semibold">《用户协议》</span> 和
-        <span class="text-pink-heart font-semibold">《隐私政策》</span>
+        <router-link to="/agreement" class="text-pink-heart font-semibold">《用户协议》</router-link> 和
+        <router-link to="/privacy" class="text-pink-heart font-semibold">《隐私政策》</router-link>
       </p>
     </div>
   </div>

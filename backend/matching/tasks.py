@@ -1,6 +1,6 @@
 """
 按需匹配：用户主动触发，系统找最佳候选人。
-每人每周最多成功匹配 2 次。
+每人每周最多成功匹配 2 次（接受后才扣减）。
 """
 from django.utils import timezone
 from django.db.models import Q
@@ -16,12 +16,13 @@ def get_week_number() -> str:
 
 def find_match_for_user(user) -> Match | None:
     """为指定用户找到最佳匹配候选人，返回 Match 对象或 None。"""
+    user.reset_weekly_count_if_needed()
     if not user.is_eligible_for_matching or not user.can_match:
         return None
 
     week = get_week_number()
 
-    # 排除：本周已有过匹配记录的用户
+    # 排除：本周已有匹配记录的用户（不论状态）
     existing_matches = Match.objects.filter(
         week_number=week
     ).filter(
@@ -41,12 +42,25 @@ def find_match_for_user(user) -> Match | None:
     excluded_ids.update(blocked_by)
     excluded_ids.add(user.id)
 
-    # 排除：本周已达成 2 次匹配的用户
+    # 排除：本周匹配次数已用完的用户
     matched_out = User.objects.filter(
         weekly_match_count__gte=User.MAX_WEEKLY_MATCHES,
         match_week=week,
     ).values_list('id', flat=True)
     excluded_ids.update(matched_out)
+
+    # 排除：有待处理匹配尚未回应的用户（避免一个人同时被多个人匹配）
+    pending_users = Match.objects.filter(
+        week_number=week,
+        status=Match.MatchStatus.PENDING,
+    ).filter(
+        Q(user_a_action=Match.Action.PENDING) | Q(user_b_action=Match.Action.PENDING)
+    ).values_list('user_a_id', 'user_b_id')
+    for a_id, b_id in pending_users:
+        excluded_ids.add(a_id)
+        excluded_ids.add(b_id)
+    # 把当前用户自己从排除列表移除（自己的待处理不应该排除自己）
+    excluded_ids.discard(user.id)
 
     # 性别偏好筛选
     if user.gender == User.Gender.MALE:
@@ -123,4 +137,53 @@ def find_match_for_user(user) -> Match | None:
             'compatibility_highlights': best_highlights,
         },
     )
+
+    if created:
+        # 发送邮件通知被匹配的用户
+        partner = best_candidate if user == user_a else user_a
+        _send_match_notification(user, partner)
+
     return match
+
+
+def _send_match_notification(requester, partner):
+    """给被匹配的用户发送邮件提醒"""
+    import logging
+    import resend
+    from django.conf import settings
+
+    logger = logging.getLogger(__name__)
+
+    if not partner.email:
+        return
+
+    try:
+        resend.api_key = settings.RESEND_API_KEY
+        resend.Emails.send({
+            'from': 'TryDate <noreply@dlnu-love.top>',
+            'to': [partner.email],
+            'subject': '【TryDate】你收到一个新的匹配请求 💝',
+            'html': f'''
+                <div style="max-width:480px;margin:0 auto;padding:32px 24px;font-family:sans-serif;">
+                    <h2 style="color:#e84393;text-align:center;">💝 有人想认识你！</h2>
+                    <p style="color:#333;font-size:15px;line-height:1.8;">
+                        你好 <strong>{partner.nickname}</strong>，
+                    </p>
+                    <p style="color:#555;font-size:14px;line-height:1.8;">
+                        <strong>{requester.nickname}</strong> 与你匹配成功啦！
+                        快来 TryDate 查看你的匹配结果，决定是否心动吧～
+                    </p>
+                    <div style="text-align:center;margin:28px 0;">
+                        <a href="https://dlnu-love.top/app/match"
+                           style="display:inline-block;padding:12px 32px;background:linear-gradient(135deg,#e84393,#fd79a8);color:#fff;border-radius:12px;text-decoration:none;font-weight:bold;font-size:15px;">
+                            查看匹配结果
+                        </a>
+                    </div>
+                    <p style="color:#aaa;font-size:12px;text-align:center;">
+                        此邮件由 TryDate 系统自动发送，请勿回复。
+                    </p>
+                </div>
+            ''',
+        })
+    except Exception as e:
+        logger.warning(f'匹配通知邮件发送失败: {e}')

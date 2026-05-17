@@ -42,7 +42,11 @@
             <div v-if="post.is_anonymous" class="ml-auto">
               <span class="text-[10px] bg-lilac-pale text-lilac-deep px-2 py-0.5 rounded-full font-semibold">匿名</span>
             </div>
-            <button @click="openReportPost(post)" class="ml-auto text-text-sub active:scale-90 transition-transform">
+            <button v-if="post.is_owner" @click="deletePost(post)"
+              class="ml-auto text-text-sub/60 active:scale-90 transition-transform">
+              <Trash2Icon class="w-4 h-4" />
+            </button>
+            <button v-if="!post.is_owner" @click="openReportPost(post)" class="ml-auto text-text-sub active:scale-90 transition-transform">
               <FlagIcon class="w-4 h-4" />
             </button>
           </div>
@@ -89,6 +93,7 @@
               </div>
               <!-- Comment input -->
               <div class="flex items-center gap-2 mt-1">
+                <EmojiPicker @select="(e) => post._newComment = (post._newComment || '') + e" />
                 <input v-model="post._newComment" placeholder="写评论…" maxlength="100"
                   class="flex-1 px-3 py-1.5 rounded-xl bg-cream text-xs text-text-main placeholder-text-sub outline-none focus:ring-1 focus:ring-lilac" />
                 <button @click="post._newAnonymous = !post._newAnonymous"
@@ -115,6 +120,10 @@
         <textarea v-model="newContent" placeholder="说说你的校园故事…（最多200字）"
           maxlength="200" rows="4"
           class="input-field resize-none mb-3 text-sm" />
+
+        <div class="mb-3">
+          <EmojiPicker @select="(e) => newContent += e" />
+        </div>
 
         <div class="flex items-center justify-between mb-4">
           <label class="flex items-center gap-2 cursor-pointer">
@@ -163,9 +172,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { PlusIcon, HeartIcon, MessageCircleIcon, FlagIcon } from 'lucide-vue-next'
+import { PlusIcon, HeartIcon, MessageCircleIcon, FlagIcon, Trash2Icon } from 'lucide-vue-next'
 import { toast } from 'vue3-toastify'
 import { postsApi, chatApi } from '@/api'
+import EmojiPicker from '@/components/EmojiPicker.vue'
 import dayjs from 'dayjs'
 
 const loading = ref(true)
@@ -239,6 +249,15 @@ async function submitComment(post: any) {
     post.comment_count = (post.comment_count || 0) + 1
     post._newComment = ''
   } catch { toast.error('评论失败') }
+}
+
+async function deletePost(post: any) {
+  if (!confirm('确定要删除这条动态吗？')) return
+  try {
+    await postsApi.delete(post.id)
+    posts.value = posts.value.filter((p: any) => p.id !== post.id)
+    toast.success('已删除')
+  } catch { toast.error('删除失败') }
 }
 
 function openReportPost(post: any) {

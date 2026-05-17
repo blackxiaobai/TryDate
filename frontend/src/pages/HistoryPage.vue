@@ -45,13 +45,18 @@
 
         <!-- Status badge -->
         <div class="shrink-0">
-          <span class="text-xs font-bold px-2.5 py-1 rounded-xl"
+          <router-link v-if="match.status === 'pending' && match.my_action === 'pending'"
+            to="/app/match"
+            class="text-xs font-bold px-2.5 py-1 rounded-xl bg-amber/20 text-amber active:scale-95 transition-transform inline-block">
+            去回应 ❤️
+          </router-link>
+          <span v-else class="text-xs font-bold px-2.5 py-1 rounded-xl"
             :class="{
               'bg-mint/20 text-mint': match.status === 'matched',
               'bg-gray-100 text-gray-400': match.status === 'missed',
               'bg-amber/20 text-amber': match.status === 'pending',
             }">
-            {{ { matched: '💝 心动', missed: '已错过', pending: '等待中' }[match.status] }}
+            {{ { matched: '💝 心动', missed: '已错过', pending: '等待对方' }[match.status] }}
           </span>
         </div>
       </div>

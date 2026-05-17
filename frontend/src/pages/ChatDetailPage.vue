@@ -52,6 +52,7 @@
     <div class="glass bg-white/95 border-t border-white/60 px-4 pt-3 pb-safe safe-bottom"
       style="padding-bottom: max(12px, env(safe-area-inset-bottom))">
       <div class="flex items-end gap-2 max-w-lg mx-auto">
+        <EmojiPicker @select="(e) => inputText += e" />
         <div class="flex-1 relative">
           <textarea v-model="inputText" @keydown.enter.prevent="sendMessage"
             placeholder="说点什么…" rows="1"
@@ -113,6 +114,7 @@ import { ArrowLeftIcon, MoreHorizontalIcon, SendIcon, FlagIcon, BanIcon } from '
 import { toast } from 'vue3-toastify'
 import { chatApi } from '@/api'
 import { useAuthStore } from '@/stores/auth'
+import EmojiPicker from '@/components/EmojiPicker.vue'
 import dayjs from 'dayjs'
 
 const route = useRoute()

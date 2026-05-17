@@ -6,6 +6,8 @@ const router = createRouter({
   routes: [
     { path: '/', component: () => import('@/pages/LandingPage.vue'), meta: { guest: true } },
     { path: '/login', component: () => import('@/pages/LoginPage.vue'), meta: { guest: true } },
+    { path: '/agreement', component: () => import('@/pages/AgreementPage.vue') },
+    { path: '/privacy', component: () => import('@/pages/PrivacyPage.vue') },
     {
       path: '/app',
       component: () => import('@/layouts/AppLayout.vue'),
