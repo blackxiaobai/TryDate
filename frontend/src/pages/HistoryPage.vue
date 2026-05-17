@@ -27,8 +27,8 @@
         class="card flex items-center gap-3 animate-fade-in">
         <!-- Avatar -->
         <div class="w-12 h-12 rounded-full overflow-hidden bg-gradient-soft flex items-center justify-center text-xl shrink-0 border-2 border-white shadow-sm"
-          :class="match.status !== 'matched' ? 'filter blur-sm' : ''">
-          <img v-if="match.partner.avatar_url && match.status === 'matched'" :src="match.partner.avatar_url" class="w-full h-full object-cover" />
+          :class="match.status === 'pending' && match.my_action === 'pending' ? 'filter blur-sm' : ''">
+          <img v-if="match.partner.avatar_url && match.status !== 'pending'" :src="match.partner.avatar_url" class="w-full h-full object-cover" />
           <span v-else>{{ match.partner.gender === 'male' ? '🙋‍♂️' : '🙋‍♀️' }}</span>
         </div>
 
@@ -36,27 +36,32 @@
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2">
             <span class="font-bold text-text-main text-sm">
-              {{ match.status === 'matched' ? match.partner.nickname : '神秘 TA' }}
+              {{ match.status === 'pending' && match.my_action === 'pending' ? '神秘 TA' : match.partner.nickname }}
             </span>
             <span class="text-xs font-black text-gradient">{{ match.compatibility_score }}%</span>
           </div>
           <p class="text-[11px] text-text-sub">{{ match.week_number }}</p>
         </div>
 
-        <!-- Status badge -->
+        <!-- Status badge / actions -->
         <div class="shrink-0">
           <router-link v-if="match.status === 'pending' && match.my_action === 'pending'"
             to="/app/match"
             class="text-xs font-bold px-2.5 py-1 rounded-xl bg-amber/20 text-amber active:scale-95 transition-transform inline-block">
             去回应 ❤️
           </router-link>
+          <button v-else-if="match.status === 'missed'"
+            @click="rematchWith(match)"
+            :disabled="rematching === match.id"
+            class="text-xs font-bold px-2.5 py-1 rounded-xl bg-pink-pale text-pink-heart active:scale-95 transition-transform">
+            {{ rematching === match.id ? '匹配中…' : '重新匹配' }}
+          </button>
           <span v-else class="text-xs font-bold px-2.5 py-1 rounded-xl"
             :class="{
               'bg-mint/20 text-mint': match.status === 'matched',
-              'bg-gray-100 text-gray-400': match.status === 'missed',
               'bg-amber/20 text-amber': match.status === 'pending',
             }">
-            {{ { matched: '💝 心动', missed: '已错过', pending: '等待对方' }[match.status] }}
+            {{ { matched: '💝 心动', pending: '等待对方' }[match.status] }}
           </span>
         </div>
       </div>
@@ -66,11 +71,32 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ArrowLeftIcon } from 'lucide-vue-next'
+import { toast } from 'vue3-toastify'
 import { matchApi } from '@/api'
 
+const router = useRouter()
 const loading = ref(true)
 const history = ref<any[]>([])
+const rematching = ref<number | null>(null)
+
+async function rematchWith(match: any) {
+  rematching.value = match.id
+  try {
+    const res = await matchApi.rematch(match.id)
+    if (res.data.matched) {
+      toast.success('重新匹配成功！')
+      router.push('/app/match')
+    } else {
+      toast.info(res.data.detail || '重新匹配失败')
+    }
+  } catch {
+    toast.error('重新匹配失败')
+  } finally {
+    rematching.value = null
+  }
+}
 
 onMounted(async () => {
   try {

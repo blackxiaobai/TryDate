@@ -145,3 +145,56 @@ def trigger_match(request):
     if match:
         return Response({'detail': f'匹配完成', 'match_id': match.id})
     return Response({'detail': '未找到合适匹配'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def rematch(request, match_id):
+    """对已错过的匹配重新发起匹配"""
+    user = request.user
+    if not user.is_eligible_for_matching:
+        return Response({'detail': '请先完成灵魂问卷（完成度 ≥ 70%）'}, status=status.HTTP_400_BAD_REQUEST)
+    if not user.can_match:
+        return Response({'detail': '本周匹配次数已用完（2次/周）'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        old_match = Match.objects.get(id=match_id)
+    except Match.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if user not in (old_match.user_a, old_match.user_b):
+        return Response(status=status.HTTP_403_FORBIDDEN)
+
+    if old_match.status != Match.MatchStatus.MISSED:
+        return Response({'detail': '该匹配不是已错过状态'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # 检查对方是否可以被匹配
+    partner = old_match.user_b if old_match.user_a == user else old_match.user_a
+    partner.reset_weekly_count_if_needed()
+    if not partner.is_eligible_for_matching or not partner.can_match:
+        return Response({'detail': '对方暂不可匹配'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # 检查对方是否有未处理的待匹配
+    week = get_week_number()
+    partner_pending = Match.objects.filter(
+        week_number=week,
+        status=Match.MatchStatus.PENDING,
+    ).filter(
+        Q(user_a=partner, user_a_action=Match.Action.PENDING) |
+        Q(user_b=partner, user_b_action=Match.Action.PENDING)
+    ).exists()
+    if partner_pending:
+        return Response({'detail': '对方正在处理其他匹配，请稍后再试'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # 删除旧的 missed 记录
+    old_match.delete()
+
+    # 创建新匹配
+    new_match = find_match_for_user(user)
+    if not new_match:
+        return Response({'detail': '重新匹配失败，请稍后再试', 'matched': False})
+
+    return Response({
+        'matched': True,
+        'match': MatchSerializer(new_match, context={'request': request}).data,
+    })

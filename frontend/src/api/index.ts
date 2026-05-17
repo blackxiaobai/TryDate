@@ -23,6 +23,7 @@ export const matchApi = {
   current: () => http.get('/match/current/'),
   respond: (id: number, action: 'liked' | 'passed') =>
     http.post(`/match/${id}/respond/`, { action }),
+  rematch: (id: number) => http.post(`/match/${id}/rematch/`),
   history: () => http.get('/match/history/'),
 }
 
