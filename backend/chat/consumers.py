@@ -44,6 +44,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if not content:
             return
 
+        if await self.is_room_expired():
+            return
+
         msg = await self.save_message(msg_type, content)
 
         await self.channel_layer.group_send(
@@ -77,6 +80,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return self.user in (room.match.user_a, room.match.user_b)
         except ChatRoom.DoesNotExist:
             return False
+
+    @database_sync_to_async
+    def is_room_expired(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from .models import ChatRoom
+        try:
+            room = ChatRoom.objects.get(id=self.room_id)
+            if not room.is_active:
+                return True
+            if timezone.now() > room.created_at + timedelta(days=7):
+                room.is_active = False
+                room.save(update_fields=['is_active'])
+                return True
+            return False
+        except ChatRoom.DoesNotExist:
+            return True
 
     @database_sync_to_async
     def save_message(self, msg_type, content):

@@ -15,10 +15,11 @@ class ChatRoomSerializer(serializers.ModelSerializer):
     last_message = serializers.SerializerMethodField()
     partner = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
+    days_remaining = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatRoom
-        fields = ['id', 'partner', 'last_message', 'unread_count', 'last_message_at', 'created_at']
+        fields = ['id', 'partner', 'last_message', 'unread_count', 'last_message_at', 'created_at', 'days_remaining']
 
     def get_partner(self, obj):
         from users.serializers import UserProfileSerializer
@@ -34,6 +35,14 @@ class ChatRoomSerializer(serializers.ModelSerializer):
 
     def get_unread_count(self, obj):
         return 0
+
+    def get_days_remaining(self, obj):
+        from django.utils import timezone
+        from datetime import timedelta
+        expiry = obj.created_at + timedelta(days=7)
+        remaining = expiry - timezone.now()
+        days = remaining.days
+        return max(days, 0)
 
 
 class ReportSerializer(serializers.ModelSerializer):

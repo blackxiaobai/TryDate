@@ -44,9 +44,15 @@
             <span class="font-bold text-text-main text-sm">{{ room.partner.nickname }}</span>
             <span class="text-[11px] text-text-sub">{{ formatTime(room.last_message_at) }}</span>
           </div>
-          <p class="text-xs text-text-sub truncate mt-0.5">
-            {{ room.last_message?.content || '说点什么吧…' }}
-          </p>
+          <div class="flex items-center justify-between mt-0.5">
+            <p class="text-xs text-text-sub truncate flex-1 mr-2">
+              {{ room.last_message?.content || '说点什么吧…' }}
+            </p>
+            <span class="text-[10px] font-bold shrink-0 px-1.5 py-0.5 rounded-md"
+              :class="room.days_remaining <= 1 ? 'bg-red-50 text-red-400' : room.days_remaining <= 3 ? 'bg-amber/10 text-amber' : 'bg-mint/10 text-mint'">
+              {{ room.days_remaining }}天
+            </span>
+          </div>
         </div>
       </router-link>
     </div>

@@ -11,7 +11,11 @@
       </div>
       <div class="flex-1">
         <h2 class="font-black text-text-main text-sm leading-tight">{{ partnerName }}</h2>
-        <p class="text-[11px] text-mint font-semibold">在线</p>
+        <p v-if="!expired" class="text-[11px] font-semibold"
+          :class="daysRemaining <= 1 ? 'text-red-400' : daysRemaining <= 3 ? 'text-amber' : 'text-mint'">
+          聊天剩余 {{ daysRemaining }} 天
+        </p>
+        <p v-else class="text-[11px] text-red-400 font-semibold">聊天已过期</p>
       </div>
       <button @click="showMenu = !showMenu" class="w-9 h-9 rounded-xl bg-cream flex items-center justify-center">
         <MoreHorizontalIcon class="w-5 h-5 text-text-sub" />
@@ -49,7 +53,7 @@
     </div>
 
     <!-- Input area -->
-    <div class="glass bg-white/95 border-t border-white/60 px-4 pt-3 pb-safe safe-bottom"
+    <div v-if="!expired" class="glass bg-white/95 border-t border-white/60 px-4 pt-3 pb-safe safe-bottom"
       style="padding-bottom: max(12px, env(safe-area-inset-bottom))">
       <div class="flex items-end gap-2 max-w-lg mx-auto">
         <EmojiPicker @select="(e) => inputText += e" />
@@ -65,6 +69,14 @@
           <SendIcon class="w-4 h-4" :class="inputText.trim() ? 'text-white' : 'text-text-sub'" />
         </button>
       </div>
+    </div>
+
+    <!-- Expired banner -->
+    <div v-else class="glass bg-white/95 border-t border-white/60 px-4 py-4 text-center">
+      <p class="text-sm text-text-sub font-semibold">⏰ 聊天有效期已到，如需继续交流请重新匹配</p>
+      <router-link to="/app/match" class="inline-block mt-2 text-xs font-bold text-pink-heart bg-pink-pale px-4 py-2 rounded-xl">
+        去匹配 💘
+      </router-link>
     </div>
 
     <!-- Report/Block menu -->
@@ -130,6 +142,8 @@ const partnerTyping = ref(false)
 const partnerName = ref('...')
 const partnerAvatar = ref('')
 const partnerId = ref('')
+const daysRemaining = ref(7)
+const expired = ref(false)
 
 const myId = computed(() => auth.user?.id)
 let ws: WebSocket | null = null
@@ -231,13 +245,21 @@ onMounted(async () => {
     partnerId.value = roomRes.data.partner.id
     partnerName.value = roomRes.data.partner.nickname
     partnerAvatar.value = roomRes.data.partner.avatar_url || ''
+    daysRemaining.value = roomRes.data.days_remaining ?? 7
+    expired.value = roomRes.data.expired ?? false
   } catch {}
-  try {
-    const res = await chatApi.messages(parseInt(roomId))
-    messages.value = res.data
-    scrollBottom()
-  } catch {}
-  connectWS()
+  if (!expired.value) {
+    try {
+      const res = await chatApi.messages(parseInt(roomId))
+      messages.value = res.data
+      scrollBottom()
+    } catch (e: any) {
+      if (e?.response?.status === 410) {
+        expired.value = true
+      }
+    }
+    connectWS()
+  }
 })
 
 onUnmounted(() => {

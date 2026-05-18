@@ -1,4 +1,6 @@
+from datetime import timedelta
 from django.db.models import Q
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -7,6 +9,25 @@ from .models import ChatRoom, Message, Report
 from .serializers import ChatRoomSerializer, MessageSerializer, ReportSerializer
 from matching.models import Match
 from users.models import BlackList
+
+CHAT_EXPIRY_DAYS = 7
+
+
+def _expire_old_rooms():
+    """将超过 7 天的聊天室标记为不活跃。"""
+    cutoff = timezone.now() - timedelta(days=CHAT_EXPIRY_DAYS)
+    ChatRoom.objects.filter(is_active=True, created_at__lt=cutoff).update(is_active=False)
+
+
+def _check_room_expired(room):
+    """检查聊天室是否已过期，返回 True 表示已过期。"""
+    if not room.is_active:
+        return True
+    if timezone.now() > room.created_at + timedelta(days=CHAT_EXPIRY_DAYS):
+        room.is_active = False
+        room.save(update_fields=['is_active'])
+        return True
+    return False
 
 
 @api_view(['GET'])
@@ -20,13 +41,17 @@ def room_detail(request, room_id):
     if request.user not in (room.match.user_a, room.match.user_b):
         return Response(status=status.HTTP_403_FORBIDDEN)
 
+    expired = _check_room_expired(room)
     serializer = ChatRoomSerializer(room, context={'request': request})
-    return Response(serializer.data)
+    data = serializer.data
+    data['expired'] = expired
+    return Response(data)
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def room_list(request):
+    _expire_old_rooms()
     rooms = ChatRoom.objects.filter(
         Q(match__user_a=request.user) | Q(match__user_b=request.user),
         is_active=True,
@@ -45,6 +70,9 @@ def room_messages(request, room_id):
 
     if request.user not in (room.match.user_a, room.match.user_b):
         return Response(status=status.HTTP_403_FORBIDDEN)
+
+    if _check_room_expired(room):
+        return Response({'detail': '聊天已过期'}, status=status.HTTP_410_GONE)
 
     messages = room.messages.order_by('created_at')
     return Response(MessageSerializer(messages, many=True).data)
