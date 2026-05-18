@@ -54,7 +54,7 @@
       <div class="flex items-end gap-2 max-w-lg mx-auto">
         <EmojiPicker @select="(e) => inputText += e" />
         <div class="flex-1 relative">
-          <textarea v-model="inputText" @keydown.enter.prevent="sendMessage"
+          <textarea v-model="inputText" @keydown.enter.prevent="sendMessage" @input="onInput"
             placeholder="说点什么…" rows="1"
             class="w-full px-4 py-2.5 rounded-2xl bg-cream border-2 border-lilac-pale text-text-main placeholder-text-sub outline-none focus:border-lilac resize-none text-sm font-medium"
             style="max-height:120px;overflow-y:auto" />
@@ -147,10 +147,28 @@ const reportReasons: Record<string, string> = {
 
 function formatMsgTime(t: string) { return dayjs(t).format('HH:mm') }
 
+let typingTimer: ReturnType<typeof setTimeout> | null = null
+let typingHideTimer: ReturnType<typeof setTimeout> | null = null
+let isTyping = false
+
+function sendTypingState(typing: boolean) {
+  if (typing === isTyping) return
+  isTyping = typing
+  ws?.send(JSON.stringify({ type: 'typing', is_typing: typing }))
+}
+
+function onInput() {
+  if (!isTyping) sendTypingState(true)
+  if (typingTimer) clearTimeout(typingTimer)
+  typingTimer = setTimeout(() => sendTypingState(false), 2000)
+}
+
 async function sendMessage() {
   const text = inputText.value.trim()
   if (!text || sending.value) return
   sending.value = true
+  if (typingTimer) clearTimeout(typingTimer)
+  sendTypingState(false)
   ws?.send(JSON.stringify({ type: 'text', content: text }))
   inputText.value = ''
   sending.value = false
@@ -169,6 +187,14 @@ function connectWS() {
     if (data.type === 'chat_message') {
       messages.value.push(data)
       scrollBottom()
+    } else if (data.type === 'typing') {
+      if (data.sender_id !== myId.value) {
+        partnerTyping.value = data.is_typing
+        if (data.is_typing) {
+          clearTimeout(typingHideTimer)
+          typingHideTimer = setTimeout(() => { partnerTyping.value = false }, 3000)
+        }
+      }
     }
   }
   ws.onclose = () => setTimeout(connectWS, 3000)
@@ -214,5 +240,9 @@ onMounted(async () => {
   connectWS()
 })
 
-onUnmounted(() => { ws?.close() })
+onUnmounted(() => {
+  ws?.close()
+  if (typingTimer) clearTimeout(typingTimer)
+  if (typingHideTimer) clearTimeout(typingHideTimer)
+})
 </script>

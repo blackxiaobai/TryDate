@@ -14,6 +14,18 @@ def get_week_number() -> str:
     return timezone.now().strftime('%Y-W%W')
 
 
+def _compute_bidirectional_score(user_answers, candidate_answers):
+    """双向平均契合度，避免单向评分偏差。"""
+    forward_score, forward_dims = compute_compatibility(user_answers, candidate_answers)
+    backward_score, backward_dims = compute_compatibility(candidate_answers, user_answers)
+    avg_score = round((forward_score + backward_score) / 2, 1)
+    avg_dims = {
+        key: round((forward_dims[key] + backward_dims[key]) / 2, 1)
+        for key in forward_dims
+    }
+    return avg_score, avg_dims
+
+
 def find_match_for_user(user) -> Match | None:
     """为指定用户找到最佳匹配候选人，返回 Match 对象或 None。"""
     user.reset_weekly_count_if_needed()
@@ -105,7 +117,7 @@ def find_match_for_user(user) -> Match | None:
         for q in Questionnaire.objects.filter(user_id__in=candidate_ids)
     }
 
-    # 计算契合度，找最佳候选人
+    # 计算双向契合度，找最佳候选人
     best_score = 0
     best_candidate = None
     best_dim_scores = {}
@@ -113,7 +125,7 @@ def find_match_for_user(user) -> Match | None:
 
     for candidate in candidates:
         candidate_answers = candidate_qs.get(candidate.id, {})
-        score, dim_scores = compute_compatibility(user_answers, candidate_answers)
+        score, dim_scores = _compute_bidirectional_score(user_answers, candidate_answers)
         if score > best_score:
             best_score = score
             best_candidate = candidate
